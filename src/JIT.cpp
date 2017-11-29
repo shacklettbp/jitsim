@@ -26,7 +26,6 @@ JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> M) {
   // Lambda 2: Search for external symbols in the host process.
   auto Resolver = createLambdaResolver(
     [&](const std::string &Name) {
-      //if (auto Sym = CompileLayer.findSymbol(Name, false))
       if (auto Sym = OptimizeLayer.findSymbol(Name, false))
         return Sym;
       return JITSymbol(nullptr);
@@ -39,7 +38,6 @@ JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> M) {
 
   // Add the set to the JIT with the resolver we created above and a newly
   // created SectionMemoryManager.
-  //return cantFail(CompileLayer.addModule(std::move(M), std::move(Resolver)));
   return cantFail(OptimizeLayer.addModule(std::move(M), std::move(Resolver)));
 }
 
@@ -47,7 +45,6 @@ JITSymbol JIT::findSymbol(const std::string Name) {
   std::string MangledName;
   raw_string_ostream MangledNameStream(MangledName);
   Mangler::getNameWithPrefix(MangledNameStream, Name, DL);
-  //return CompileLayer.findSymbol(MangledNameStream.str(), true);
   return OptimizeLayer.findSymbol(MangledNameStream.str(), true);
 }   
 
@@ -56,7 +53,6 @@ JITTargetAddress JIT::getSymbolAddress(const std::string Name) {
 }  
 
 void JIT::removeModule(ModuleHandle H) {
-  //cantFail(CompileLayer.removeModule(H));
   cantFail(OptimizeLayer.removeModule(H));
 }
 
@@ -71,7 +67,7 @@ std::shared_ptr<Module> optimizeModule(std::shared_ptr<Module> M) {
   FPM->add(createCFGSimplificationPass());
   FPM->doInitialization();
 
-  // Fun the optimizations over all functions in the module being added
+  // Run the optimizations over all functions in the module being added
   // to the JIT.
   for (auto &F : *M)
     FPM->run(F);
