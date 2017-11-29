@@ -3,11 +3,11 @@ CXXFLAGS = -std=c++17 -fPIC
 CXXFLAGS += -Wall -Werror -pedantic -Wextra
 LDFLAGS = -fPIC
 
-ifdef SIMDEBUG
-CXXFLAGS += -O0 -ggdb
-LDFLAGS += -fsanitize=address -fsanitize=undefined -fsanitize-recover=none
-else
+ifdef SIMOPT
 CXXFLAGS += -O2 -march=native
+else
+CXXFLAGS += -O0 -ggdb -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
+LDFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
 endif
 
 CXXFLAGS += -Iinclude
