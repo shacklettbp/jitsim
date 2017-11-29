@@ -5,7 +5,9 @@
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/JITSymbol.h>
 #include <llvm/ExecutionEngine/RTDyldMemoryManager.h>
+#include <llvm/ExecutionEngine/RuntimeDyld.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/ExecutionEngine/Orc/CompileOnDemandLayer.h>
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
 #include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
 #include <llvm/ExecutionEngine/Orc/IRTransformLayer.h>
@@ -22,6 +24,7 @@
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <algorithm>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -41,8 +44,11 @@ class JIT {
     llvm::orc::IRTransformLayer<decltype(CompileLayer), OptimizeFunction> OptimizeLayer;
     std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M);
 
+    std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackManager;
+    llvm::orc::CompileOnDemandLayer<decltype(OptimizeLayer)> CODLayer;
+
   public:
-    using ModuleHandle = decltype(CompileLayer)::ModuleHandleT;
+    using ModuleHandle = decltype(CODLayer)::ModuleHandleT;
 
     JIT();
 

@@ -16,7 +16,13 @@ JIT::JIT()
   OptimizeLayer(CompileLayer,
                 [this](std::shared_ptr<Module> M) {
                   return optimizeModule(std::move(M));
-                })
+                }),
+  CompileCallbackManager(
+      createLocalCompileCallbackManager(TM->getTargetTriple(), 0)),
+  CODLayer(OptimizeLayer,
+           [](Function &F) { return std::set<Function*>({&F}); },
+           *CompileCallbackManager,
+           createLocalIndirectStubsManagerBuilder(TM->getTargetTriple()))
 {
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
@@ -30,7 +36,7 @@ JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> M) {
   // Lambda 2: Search for external symbols in the host process.
   auto Resolver = createLambdaResolver(
     [&](const std::string &Name) {
-      if (auto Sym = OptimizeLayer.findSymbol(Name, false))
+      if (auto Sym = CODLayer.findSymbol(Name, false))
         return Sym;
       return JITSymbol(nullptr);
     },  
@@ -42,14 +48,14 @@ JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> M) {
 
   // Add the set to the JIT with the resolver we created above and a newly
   // created SectionMemoryManager.
-  return cantFail(OptimizeLayer.addModule(std::move(M), std::move(Resolver)));
+  return cantFail(CODLayer.addModule(std::move(M), std::move(Resolver)));
 }
 
 JITSymbol JIT::findSymbol(const std::string Name) {
   std::string MangledName;
   raw_string_ostream MangledNameStream(MangledName);
   Mangler::getNameWithPrefix(MangledNameStream, Name, DL);
-  return OptimizeLayer.findSymbol(MangledNameStream.str(), true);
+  return CODLayer.findSymbol(MangledNameStream.str(), true);
 }   
 
 /*JITTargetAddress JIT::getSymbolAddress(const std::string Name) {
@@ -57,7 +63,7 @@ JITSymbol JIT::findSymbol(const std::string Name) {
 }*/ 
 
 void JIT::removeModule(ModuleHandle H) {
-  cantFail(OptimizeLayer.removeModule(H));
+  cantFail(CODLayer.removeModule(H));
 }
 
 std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> M) {
