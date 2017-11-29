@@ -51,7 +51,7 @@ build/libsimjit.so: $(LIBOBJS)
 	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -shared -lcoreir -o $@
 
 build/jitfrontend: build/libsimjit.so $(BINOBJS)
-	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lsimjit  -o $@
+	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lcoreir -lsimjit  -o $@
 
 .PHONY: clean
 clean:
