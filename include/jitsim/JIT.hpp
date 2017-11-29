@@ -8,13 +8,17 @@
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
 #include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
+#include <llvm/ExecutionEngine/Orc/IRTransformLayer.h>
 #include <llvm/ExecutionEngine/Orc/LambdaResolver.h>
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/IR/DataLayout.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Mangler.h>
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Scalar/GVN.h>
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -28,6 +32,13 @@ class JIT {
     const llvm::DataLayout DL;
     llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
     llvm::orc::IRCompileLayer<decltype(ObjectLayer), llvm::orc::SimpleCompiler> CompileLayer;
+
+    using OptimizeFunction =
+      std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
+
+    llvm::orc::IRTransformLayer<decltype(CompileLayer), OptimizeFunction> OptimizeLayer;
+
+    std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M);
 
   public:
     using ModuleHandle = decltype(CompileLayer)::ModuleHandleT;
