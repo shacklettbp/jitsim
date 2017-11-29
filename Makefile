@@ -16,6 +16,11 @@ LDFLAGS += -Lbuild
 CXXFLAGS += -I${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
+# LLVM
+CXXFLAGS += -I$(shell ./external/llvm/install/bin/llvm-config --includedir)
+LDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --ldflags)
+LDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
+
 export CXX
 export CFLAGS
 export CXXFLAGS
