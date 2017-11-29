@@ -5,6 +5,10 @@ namespace JITSim {
 using namespace llvm;
 using namespace llvm::orc;
 
+void initializeNativeTarget() {
+  InitializeNativeTarget();
+}
+
 JIT::JIT()
 : TM(EngineBuilder().selectTarget()), DL(TM->createDataLayout()),
   ObjectLayer([]() { return std::make_shared<SectionMemoryManager>(); }),

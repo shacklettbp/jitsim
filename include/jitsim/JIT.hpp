@@ -14,6 +14,7 @@
 #include <llvm/IR/Mangler.h>
 #include <llvm/Support/DynamicLibrary.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <algorithm>
 #include <memory>
@@ -21,6 +22,8 @@
 #include <vector>
 
 namespace JITSim {
+
+void initializeNativeTarget();
 
 class JIT {
   private:
