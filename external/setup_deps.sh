@@ -8,7 +8,7 @@ fi
 # BUILD LLVM HERE
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=../install -G "Unix Makefiles" ../llvm-5.0.0.src
+cmake -DLLVM_BUILD_LLVM_DYLIB=true -DLLVM_LINK_LLVM_DYLIB=true -DCMAKE_INSTALL_PREFIX=../install -G "Unix Makefiles" ../llvm-5.0.0.src
 make -j5
 make install
 

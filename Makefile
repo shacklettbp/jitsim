@@ -17,8 +17,10 @@ CXXFLAGS += -I${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
 # LLVM
-CXXFLAGS += -I$(shell ./external/llvm/install/bin/llvm-config --includedir)
-LDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --ldflags)
+CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cppflags)
+LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
+LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libdir)
+LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
 export CXX
 export CFLAGS
 export CXXFLAGS
@@ -39,10 +41,10 @@ build/objs/%.o: binsrc/%.cpp $(DEPS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 build/libsimjit.so: $(LIBOBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(shell ./external/llvm/install/bin/llvm-config --libs) $(LIBOBJS) -shared -lcoreir -o $@
+	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -shared -lcoreir -o $@
 
 build/jitfrontend: build/libsimjit.so $(BINOBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(BINOBJS) -lsimjit -Wl,-rpath,build -o $@
+	$(CXX) $(LDFLAGS) $(BINOBJS) -Wl,-rpath,build -lsimjit  -o $@
 
 .PHONY: clean
 clean:
