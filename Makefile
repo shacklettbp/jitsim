@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -fPIC
+CXXFLAGS = -fPIC
 CXXFLAGS += -Wall -Werror -pedantic -Wextra
 LDFLAGS = -fPIC
 
@@ -17,7 +17,7 @@ CXXFLAGS += -I${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
 # LLVM
-CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags) -fexceptions
+CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags) -fexceptions -std=c++17
 LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
 LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libdir)
 LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
@@ -33,10 +33,18 @@ BINOBJS =$(patsubst binsrc/%.cpp,build/objs/%.o,$(BINSRCS))
 LIBSRCS =$(wildcard src/[^_]*.cpp)
 LIBOBJS =$(patsubst src/%.cpp,build/objs/%.o,$(LIBSRCS))
 
-build/objs/%.o: src/%.cpp $(DEPS)
+depend: build/.depend
+
+build/.depend: $(LIBSRCS) $(BINSRCS)
+	rm -f ./build/.depend
+	$(CXX) $(CXXFLAGS) -MM $^ | sed -e 's/^\(.\+\.o:\)/build\/objs\/\1/' > ./build/.depend;
+
+include build/.depend
+
+build/objs/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-build/objs/%.o: binsrc/%.cpp $(DEPS)
+build/objs/%.o: binsrc/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 build/libsimjit.so: $(LIBOBJS)
