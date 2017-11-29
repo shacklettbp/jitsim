@@ -1,6 +1,6 @@
 CXX = g++
-CFLAGS = -Wall -fPIC -Werror -pedantic -Weffc++ -Wextra
-CXXFLAGS = -std=c++17 -Wall -fPIC -Werror
+CXXFLAGS = -std=c++17 -fPIC
+CXXFLAGS += -Wall -Werror -pedantic -Wextra
 LDFLAGS = -fPIC
 
 ifdef SIMDEBUG
@@ -17,12 +17,11 @@ CXXFLAGS += -I${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
 # LLVM
-CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cppflags)
+CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags) -fexceptions
 LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
 LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libdir)
 LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
 export CXX
-export CFLAGS
 export CXXFLAGS
 export LDFLAGS
 
@@ -44,7 +43,7 @@ build/libsimjit.so: $(LIBOBJS)
 	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -shared -lcoreir -o $@
 
 build/jitfrontend: build/libsimjit.so $(BINOBJS)
-	$(CXX) $(LDFLAGS) $(BINOBJS) -Wl,-rpath,build -lsimjit  -o $@
+	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lsimjit  -o $@
 
 .PHONY: clean
 clean:
