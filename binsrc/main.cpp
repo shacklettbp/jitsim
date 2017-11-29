@@ -44,7 +44,6 @@ int main(int argc, char *argv[])
   JITSim::initializeNativeTarget();
   JITSim::JIT *jit = new JITSim::JIT();
   (void)jit;
-  cout << JITSim::entry() << endl;
 
   return 0;
 }
