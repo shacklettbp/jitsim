@@ -44,9 +44,9 @@ JITSymbol JIT::findSymbol(const std::string Name) {
   return CompileLayer.findSymbol(MangledNameStream.str(), true);
 }   
 
-JITTargetAddress JIT::getSymbolAddress(const std::string Name) {
+/*JITTargetAddress JIT::getSymbolAddress(const std::string Name) {
   return cantFail(findSymbol(Name).getAddress());
-}  
+}*/ 
 
 void JIT::removeModule(ModuleHandle H) {
   cantFail(CompileLayer.removeModule(H));

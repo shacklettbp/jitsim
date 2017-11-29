@@ -40,7 +40,7 @@ class JIT {
 
     llvm::JITSymbol findSymbol(const std::string Name);
 
-    llvm::JITTargetAddress getSymbolAddress(const std::string Name);
+    //llvm::JITTargetAddress getSymbolAddress(const std::string Name);
 
     void removeModule(ModuleHandle H);
 };
