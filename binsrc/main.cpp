@@ -4,7 +4,6 @@
 #include <jitsim/jitsim.hpp>
 #include <jitsim/JIT.hpp>
 #include <jitsim/circuit.hpp>
-
 #include <coreir/ir/context.h>
 
 using namespace std;
@@ -42,8 +41,8 @@ int main(int argc, char *argv[])
   JITSim::Circuit circuit = loadJSON(argv[1]);
 
   JITSim::initializeNativeTarget();
-  JITSim::JIT *jit = new JITSim::JIT();
-  (void)jit;
+  JITSim::JIT jit;
+  cout << JITSim::entry() << endl;
 
   return 0;
 }
