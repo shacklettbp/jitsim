@@ -7,11 +7,14 @@ ifdef SIMDEBUG
 CXXFLAGS += -O0 -ggdb
 LDFLAGS += -fsanitize=address -fsanitize=undefined -fsanitize-recover=none
 else
-CXXFLAGS += -O3
+CXXFLAGS += -O2 -march=native
 endif
 
-CXXFLAGS += -Iinclude -Isrc
+CXXFLAGS += -Iinclude
 LDFLAGS += -Lbuild
+
+CXXFLAGS += -I${HOME}/magma/coreir/include
+LDFLAGS += -L${HOME}/magma/coreir/lib
 
 export CXX
 export CFLAGS
@@ -33,7 +36,7 @@ build/objs/%.o: binsrc/%.cpp $(DEPS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 build/libsimjit.so: $(LIBOBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAG) $< -shared -o $@
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $< -shared -lcoreir -o $@
 
 build/jitfrontend: build/libsimjit.so $(BINOBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(BINOBJS) -lsimjit -Wl,-rpath,build -o $@
