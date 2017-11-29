@@ -1,5 +1,5 @@
 CXX = g++
-CFLAGS = -Wall -fPIC -Werror
+CFLAGS = -Wall -fPIC -Werror -pedantic -Weffc++ -Wextra
 CXXFLAGS = -std=c++17 -Wall -fPIC -Werror
 LDFLAGS = -fPIC
 
