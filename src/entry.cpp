@@ -2,6 +2,10 @@
 
 using namespace std;
 
-string stuff() {
+namespace JITSim {
+
+string entry() {
   return "hi";
+}
+
 }

@@ -10,22 +10,34 @@ else
 CXXFLAGS += -O3
 endif
 
+CXXFLAGS += -Iinclude -Isrc
+LDFLAGS += -Lbuild
+
 export CXX
 export CFLAGS
 export CXXFLAGS
 export LDFLAGS
 
-all: build/simjit.so
+all: build/libsimjit.so build/jitfrontend
 
-SRCS =$(wildcard src/[^_]*.cpp)
-OBJS =$(patsubst src/%.cpp,build/%.o,$(SRCS))
+BINSRCS =$(wildcard binsrc/[^_]*.cpp)
+BINOBJS =$(patsubst binsrc/%.cpp,build/objs/%.o,$(BINSRCS))
 
-build/%.o: src/%.cpp $(DEPS)
+LIBSRCS =$(wildcard src/[^_]*.cpp)
+LIBOBJS =$(patsubst src/%.cpp,build/objs/%.o,$(LIBSRCS))
+
+build/objs/%.o: src/%.cpp $(DEPS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-build/simjit.so: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(OBJS) -shared -o $@
+build/objs/%.o: binsrc/%.cpp $(DEPS)
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+build/libsimjit.so: $(LIBOBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAG) $< -shared -o $@
+
+build/jitfrontend: build/libsimjit.so $(BINOBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(BINOBJS) -lsimjit -Wl,-rpath,build -o $@
 
 .PHONY: clean
 clean:
-	rm -rf build/*
+	rm -rf build/libsimjit.so build/jitfrontend build/objs/*
