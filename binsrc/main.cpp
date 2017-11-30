@@ -48,6 +48,9 @@ int main(int argc, char *argv[])
   JITSim::Builder builder;
 
   JITSim::JIT::ModuleHandle handle = jit.addModule(builder.makeModule());
+  std::function<int()> Adder = (int(*)())jit.getSymbolAddress("wrapadd");
+  int Result = Adder(); // this conversion is wrong
+  cout << Result << endl;
   jit.removeModule(handle);
   return 0;
 }

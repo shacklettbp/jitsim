@@ -16,13 +16,13 @@ class Builder {
   private:
     llvm::LLVMContext Context;
     llvm::IRBuilder<> TheBuilder;
-    std::map<std::string, llvm::Value *> NamedValues; // not used yet
-    // need a way of storing modules maybe?
+    //std::map<std::string, llvm::Value *> NamedValues; // Not yet used.
   public:
 
     Builder();
-    std::unique_ptr<llvm::Module> makeModule(); // no inputs for now
-
+    // Makes hard-coded module
+    std::unique_ptr<llvm::Module> makeModule();
+    int adder(int lhs, int rhs);
 };
 
 } // end namespace JITSim

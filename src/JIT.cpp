@@ -1,4 +1,5 @@
 #include <jitsim/JIT.hpp>
+#include <iostream>
 
 namespace JITSim {
 
@@ -7,6 +8,8 @@ using namespace llvm::orc;
 
 void initializeNativeTarget() {
   InitializeNativeTarget();
+  LLVMInitializeNativeAsmPrinter();
+  LLVMInitializeNativeAsmParser();
 }
 
 JIT::JIT()
@@ -30,6 +33,9 @@ JIT::JIT()
 TargetMachine &JIT::getTargetMachine() { return *TM; }
 
 JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> M) {
+  // Set data layout.
+  M->setDataLayout(TM->createDataLayout());
+
   // Build our symbol resolver:
   // Lambda 1: Look back into the JIT itself to find symbols that are part of
   //           the same "logical dylib".
@@ -58,9 +64,9 @@ JITSymbol JIT::findSymbol(const std::string Name) {
   return CODLayer.findSymbol(MangledNameStream.str(), true);
 }   
 
-/*JITTargetAddress JIT::getSymbolAddress(const std::string Name) {
+JITTargetAddress JIT::getSymbolAddress(const std::string Name) {
   return cantFail(findSymbol(Name).getAddress());
-}*/ 
+} 
 
 void JIT::removeModule(ModuleHandle H) {
   cantFail(CODLayer.removeModule(H));
