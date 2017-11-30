@@ -85,4 +85,4 @@ std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> M) {
   return M;
 }
 
-}
+} // end namespace JITSim

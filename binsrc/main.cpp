@@ -3,6 +3,7 @@
 
 #include <jitsim/jitsim.hpp>
 #include <jitsim/JIT.hpp>
+#include <jitsim/Builder.hpp>
 #include <jitsim/circuit.hpp>
 #include <jitsim/coreir.hpp>
 #include <coreir/ir/context.h>
@@ -44,6 +45,9 @@ int main(int argc, char *argv[])
 
   JITSim::initializeNativeTarget();
   JITSim::JIT jit;
+  JITSim::Builder builder;
 
+  JITSim::JIT::ModuleHandle handle = jit.addModule(builder.makeModule());
+  jit.removeModule(handle);
   return 0;
 }

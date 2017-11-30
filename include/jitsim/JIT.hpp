@@ -1,5 +1,5 @@
-#ifndef LLVM_EXECUTIONENGINE_ORC_JIT_H
-#define LLVM_EXECUTIONENGINE_ORC_JIT_H
+#ifndef JITSIM_JIT_HPP
+#define JITSIM_JIT_HPP
 
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -65,4 +65,4 @@ class JIT {
 
 } // end namespace JITSim
 
-#endif // LLVM_EXECUTIONENGINE_ORC_JIT_H
+#endif // JITSIM_JIT_HPP
