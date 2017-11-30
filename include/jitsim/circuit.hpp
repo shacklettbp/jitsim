@@ -1,6 +1,8 @@
 #ifndef JITSIM_CIRCUIT_HPP_INCLUDED
 #define JITSIM_CIRCUIT_HPP_INCLUDED
 
+#include <jitsim/simanalysis.hpp>
+
 #include <cassert>
 #include <unordered_map>
 #include <string>
@@ -8,6 +10,7 @@
 #include <vector>
 #include <deque>
 #include <utility>
+#include <functional>
 #include <optional>
 
 namespace JITSim {
@@ -97,17 +100,19 @@ class Instance;
 class IFace {
 private:
   std::string name;
-  std::vector<Value> outputs;
   std::vector<Input> inputs;
+  std::vector<Value> outputs;
   std::unordered_map<std::string, Input *> input_lookup;
   std::unordered_map<std::string, Value *> output_lookup;
   bool is_definition;
 
+  const SimInfo *siminfo;
 public:
-  IFace(const std::string &name,
-        const std::vector<std::pair<std::string, int>>& outputs,
-        const std::vector<std::pair<std::string, int>>& inputs,
-        const bool is_definition);
+  IFace(const std::string &name_,
+        std::vector<Input> &&inputs_,
+        std::vector<Value> &&outputs_,
+        const bool is_definition_,
+        const SimInfo *siminfo_);
 
   IFace(const IFace &) = delete;
   IFace(IFace &&) = default;
@@ -128,6 +133,9 @@ public:
 
   bool isDefinition() const { return is_definition; }
   bool isInstance() const { return !is_definition; }
+
+  const SimInfo * getSimInfo() const { return siminfo; }
+  void setSimInfo(const SimInfo *si) { siminfo = si; }
 };
 
 class Instance {
@@ -137,8 +145,8 @@ private:
   const Definition *defn;
 public:
   Instance(const std::string &name_, 
-           const std::vector<std::pair<std::string, int>>& outputs,
-           const std::vector<std::pair<std::string, int>>& inputs,
+           std::vector<Input> &&inputs,
+           std::vector<Value> &&outputs,
            const Definition *defn);
 
   IFace & getIFace() { return interface; }
@@ -155,21 +163,24 @@ private:
 
   std::vector<Instance> instances;
 
-  std::vector<const Instance *> pre_instances;
-  std::vector<const Instance *> post_instances;
-
-  bool stateful;
+  SimInfo siminfo;
 public:
   Definition(const std::string &name,
-             const std::vector<std::pair<std::string, int>>& outputs,
-             const std::vector<std::pair<std::string, int>>& inputs,
-             std::vector<Instance> &&instances);
+             std::vector<Input> &&inputs,
+             std::vector<Value> &&outputs,
+             std::vector<Instance> &&instances,
+             std::function<void (IFace&, std::vector<Instance> &instances)> make_connections);
+
+  Definition(const std::string &name,
+             std::vector<Input> &&inputs,
+             std::vector<Value> &&outputs);
 
   Instance makeInstance(const std::string &name) const;
 
   const IFace & getIFace() const { return interface; }
   IFace & getIFace() { return interface; }
   const std::string & getName() const { return name; }
+  const SimInfo & getSimInfo() const { return siminfo; }
 
   void print(const std::string &prefix = "") const;
 };

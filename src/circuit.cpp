@@ -54,24 +54,18 @@ void Select::compressSlices()
 }
 
 IFace::IFace(const string &name_,
-             const vector<pair<string, int>>& outputs_,
-             const vector<pair<string, int>>& inputs_,
-             bool is_defn)
+             vector<Input> &&inputs_,
+             vector<Value> &&outputs_,
+             bool is_defn,
+             const SimInfo *siminfo_)
   : name(name_),
-    outputs(), 
-    inputs(),
+    inputs(move(inputs_)),
+    outputs(move(outputs_)), 
     input_lookup(),
     output_lookup(),
-    is_definition(is_defn)
+    is_definition(is_defn),
+    siminfo(siminfo_)
 {
-  for (auto &name_pair : outputs_) {
-    outputs.emplace_back(name_pair.first, name_pair.second);
-  }
-
-  for (auto &name_pair : inputs_) {
-    inputs.emplace_back(name_pair.first, name_pair.second);
-  }
-
   for (Value &output : outputs) {
     output_lookup[output.getName()] = &output;
   }
@@ -102,42 +96,60 @@ Input * IFace::getInput(const std::string &name)
 }
 
 Instance::Instance(const string &name_,
-                   const vector<pair<string, int>>& outputs,
-                   const vector<pair<string, int>>& inputs,
+                   vector<Input> &&inputs,
+                   vector<Value> &&outputs,
                    const Definition *defn_)
   : name(name_),
-    interface(name, outputs, inputs, false),
+    interface(name, move(inputs), move(outputs), false, &defn->getSimInfo()),
     defn(defn_)
 {
 }
 
-Definition::Definition(const string &name_,
-                       const vector<pair<string, int>>& outputs,
-                       const vector<pair<string, int>>& inputs,
-                       vector<Instance> &&insts)
-  : name(name_),
-    interface("self", outputs, inputs, true),
-    instances(move(insts)),
-    pre_instances(),
-    post_instances(),
-    stateful()
+vector<Instance> & fully_connect(IFace &iface, vector<Instance> &instances,
+                                       function<void (IFace&, vector<Instance> &instances)> make_connections)
 {
-  // FIXME populate simulation information
+  make_connections(iface, instances);
+  return instances;
 }
+
+Definition::Definition(const string &name_,
+                       vector<Input> &&inputs,
+                       vector<Value> &&outputs,
+                       vector<Instance> &&insts,
+                       function<void (IFace&, vector<Instance> &instances)> make_connections)
+  : name(name_),
+    interface("self", move(inputs), move(outputs), true, nullptr),
+    instances(move(insts)),
+    siminfo(fully_connect(interface, instances, make_connections))
+{
+  interface.setSimInfo(&siminfo);
+}
+
+Definition::Definition(const string &name_,
+                       vector<Input> &&inputs,
+                       vector<Value> &&outputs)
+  : name(name_),
+    interface("self", move(inputs), move(outputs), true, nullptr),
+    instances(),
+    siminfo(false) // FIXME
+{
+  interface.setSimInfo(&siminfo);
+}
+
 
 Instance Definition::makeInstance(const string &name) const
 {
-  vector<pair<string, int>> outputs;
-  vector<pair<string, int>> inputs;
+  vector<Value> outputs;
+  vector<Input> inputs;
   for (const Input &input : interface.getInputs()) {
-    outputs.emplace_back(make_pair(input.getName(), input.getWidth()));
+    outputs.emplace_back(input.getName(), input.getWidth());
   }
 
   for (const Value &val  : interface.getOutputs()) {
-    inputs.emplace_back(make_pair(val.getName(), val.getWidth()));
+    inputs.emplace_back(val.getName(), val.getWidth());
   }
 
-  return Instance(name, outputs, inputs, this);
+  return Instance(name, move(inputs), move(outputs), this);
 }
 
 string ValueSlice::repr() const
