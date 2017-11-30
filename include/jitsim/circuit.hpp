@@ -34,18 +34,22 @@ public:
 class ValueSlice {
 private:
   const IFace *iface;
+  const SimInfo *siminfo;
   const Value *val;
   int offset;
   int width;
   bool is_whole;
 
 public:
-  ValueSlice(const IFace *iface_, const Value *val_, int offset_, int width_)
-    : iface(iface_), val(val_), offset(offset_), width(width_),
+  ValueSlice(const IFace *iface_, const SimInfo *siminfo_,
+             const Value *val_, int offset_, int width_)
+    : iface(iface_), siminfo(siminfo_),
+      val(val_), offset(offset_), width(width_),
       is_whole(offset == 0 && width == val->getWidth())
   {}
 
   const IFace * getIFace() const { return iface; }
+  const SimInfo * getSimInfo() const { return siminfo; }
   const Value * getValue() const { return val; }
 
   int getEndIdx() const { return offset + width; }
@@ -145,6 +149,7 @@ public:
 
   IFace & getIFace() { return interface; }
   const IFace & getIFace() const { return interface; }
+  const Definition & getDefinition() const { return *defn; }
   const std::string & getName() const { return name; }
 
   void print(const std::string &prefix = "") const;
@@ -163,7 +168,7 @@ public:
              std::vector<Input> &&inputs,
              std::vector<Value> &&outputs,
              std::vector<Instance> &&instances,
-             std::function<void (IFace&, std::vector<Instance> &instances)> make_connections);
+             std::function<void (Definition&, std::vector<Instance> &instances)> make_connections);
 
   Definition(const std::string &name,
              std::vector<Input> &&inputs,

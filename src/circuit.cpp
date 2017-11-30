@@ -103,10 +103,10 @@ Instance::Instance(const string &name_,
 {
 }
 
-vector<Instance> & fully_connect(IFace &iface, vector<Instance> &instances,
-                                       function<void (IFace&, vector<Instance> &instances)> make_connections)
+vector<Instance> & fully_connect(Definition &defn, vector<Instance> &instances,
+                                 function<void (Definition&, vector<Instance> &instances)> make_connections)
 {
-  make_connections(iface, instances);
+  make_connections(defn, instances);
   return instances;
 }
 
@@ -114,11 +114,11 @@ Definition::Definition(const string &name_,
                        vector<Input> &&inputs,
                        vector<Value> &&outputs,
                        vector<Instance> &&insts,
-                       function<void (IFace&, vector<Instance> &instances)> make_connections)
+                       function<void (Definition&, vector<Instance> &instances)> make_connections)
   : name(name_),
     interface("self", move(inputs), move(outputs), true),
     instances(move(insts)),
-    siminfo(fully_connect(interface, instances, make_connections))
+    siminfo(fully_connect(*this, instances, make_connections))
 {}
 
 Definition::Definition(const string &name_,
