@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <list>
+#include <iostream>
 
 namespace JITSim {
 
@@ -47,74 +48,118 @@ IFace::IFace(const vector<pair<string, int>>& outputs_,
   }
 }
 
-const Value * IFace::get_output(const std::string &name) const
+const Value * IFace::getOutput(const std::string &name) const
 {
   return output_lookup.find(name)->second;
 }
 
-Value * IFace::get_output(const std::string &name)
+Value * IFace::getOutput(const std::string &name)
 {
   return output_lookup.find(name)->second;
 }
 
-const Input * IFace::get_input(const std::string &name) const
+const Input * IFace::getInput(const std::string &name) const
 {
   return input_lookup.find(name)->second;
 }
 
-Input * IFace::get_input(const std::string &name)
+Input * IFace::getInput(const std::string &name)
 {
   return input_lookup.find(name)->second;
 }
 
-Instance::Instance(const string &name_, IFace &&iface, const DefnRef *defn_) 
+Instance::Instance(const string &name_,
+                   const vector<pair<string, int>>& outputs,
+                   const vector<pair<string, int>>& inputs,
+                   const Definition *defn_)
   : name(name_),
-    interface(move(iface)),
+    interface(outputs, inputs, false),
     defn(defn_)
 {
 }
 
-Definition::Definition(const string &name_, IFace &&iface, vector<Instance> &&insts)
+Definition::Definition(const string &name_,
+                       const vector<pair<string, int>>& outputs,
+                       const vector<pair<string, int>>& inputs,
+                       vector<Instance> &&insts)
   : name(name_),
-    interface(move(iface)),
-    instances(move(insts)), pre_instances(),
+    interface(outputs, inputs, true),
+    instances(move(insts)),
+    pre_instances(),
     post_instances()
 {
   // FIXME populate pre and post
 }
 
-const DefnRef *Definition::getRef() const
-{
-  return nullptr;
-}
-
 Instance Definition::makeInstance(const string &name) const
 {
-  const DefnRef *defnref = getRef();
-
   vector<pair<string, int>> outputs;
   vector<pair<string, int>> inputs;
-  for (const string &name : interface.get_input_names()) {
-    const Input *input = interface.get_input(name);
+  for (const string &name : interface.getInputNames()) {
+    const Input *input = interface.getInput(name);
     outputs.emplace_back(make_pair(name, input->getWidth()));
   }
 
-  for (const string &name : interface.get_output_names()) {
-    const Value *val = interface.get_output(name);
+  for (const string &name : interface.getOutputNames()) {
+    const Value *val = interface.getOutput(name);
     inputs.emplace_back(make_pair(name, val->getWidth()));
   }
 
-  IFace inst_interface(outputs, inputs, false);
-
-  Instance inst = Instance(name, move(inst_interface), defnref);
+  Instance inst = Instance(name, outputs, inputs, this);
 
   return inst;
 }
 
-void Circuit::AddDefinition(Definition &&defn)
+void IFace::print(const string &prefix) const 
 {
-  definitions.emplace_back(move(defn));
-  top_defn = &definitions.back();
+  if (is_definition) {
+    cout << prefix << "Inputs:\n";
+  } else {
+    cout << prefix << "Outputs:\n";
+  }
+  for (const string &oname : output_names) {
+    const Value *output = getOutput(oname);
+    cout << prefix << "  " << oname << ": " << output->getWidth() << endl;
+  }
+
+  if (is_definition) {
+    cout << prefix << "Outputs:\n";
+  } else {
+    cout << prefix << "Inputs:\n";
+  }
+  for (const string &iname : input_names) {
+    const Input *input = getInput(iname);
+    cout << prefix << "  " << iname << ": " << input->getWidth() << endl;
+  }
+}
+
+void Instance::print(const string &prefix) const
+{
+  cout << prefix << getName() << ": " << defn->getName() << endl;
+}
+
+void Definition::print(const string &prefix) const
+{
+  cout << prefix << "Module: " << getName() << endl;
+  cout << "  Interface:\n";
+  interface.print("    ");
+
+  if (instances.size() == 0) {
+    // FIXME print something for primitives
+    return;
+  }
+  cout << "  Instances:\n";
+
+  for (const Instance &inst : instances) {
+    inst.print(prefix + "    ");
+  }
+}
+
+void Circuit::print() const
+{
+  for (const Definition &defn : definitions) {
+    defn.print();
+  }
 }
 
 }

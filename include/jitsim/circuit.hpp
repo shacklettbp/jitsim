@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <list>
 #include <utility>
 #include <optional>
 
@@ -86,35 +87,38 @@ public:
         const std::vector<std::pair<std::string, int>>& inputs,
         bool is_defn);
 
-  const std::vector<Value> & get_outputs() const { return outputs; }
-  const std::vector<Input> & get_inputs() const { return inputs; }
+  const std::vector<Value> & getOutputs() const { return outputs; }
+  const std::vector<Input> & getInputs() const { return inputs; }
 
-  const std::vector<std::string> & get_output_names() const { return output_names; }
-  const std::vector<std::string> & get_input_names() const { return input_names; }
+  const std::vector<std::string> & getOutputNames() const { return output_names; }
+  const std::vector<std::string> & getInputNames() const { return input_names; }
 
-  const Value * get_output(const std::string &name) const;
-  const Input * get_input(const std::string &name) const;
-  Value * get_output(const std::string &name);
-  Input * get_input(const std::string &name);
+  const Value * getOutput(const std::string &name) const;
+  const Input * getInput(const std::string &name) const;
+  Value * getOutput(const std::string &name);
+  Input * getInput(const std::string &name);
+
+  void print(const std::string &prefix = "") const;
 };
 
-class DefnRef {
-private:
-public:
-  DefnRef() {}
-};
+class Definition;
 
 class Instance {
 private:
   std::string name;
   IFace interface;
-  const DefnRef *defn;
+  const Definition *defn;
 public:
-  Instance(const std::string &name_, IFace &&iface, const DefnRef *defn_);
+  Instance(const std::string &name_, 
+           const std::vector<std::pair<std::string, int>>& outputs,
+           const std::vector<std::pair<std::string, int>>& inputs,
+           const Definition *defn);
 
   IFace & getIFace() { return interface; }
   const IFace & getIFace() const { return interface; }
   const std::string & getName() const { return name; }
+
+  void print(const std::string &prefix = "") const;
 };
 
 class Definition {
@@ -127,23 +131,31 @@ private:
   std::vector<const Instance *> pre_instances;
   std::vector<const Instance *> post_instances;
 public:
-  Definition(const std::string &name, IFace &&iface, std::vector<Instance> &&instances);
+  Definition(const std::string &name,
+             const std::vector<std::pair<std::string, int>>& outputs,
+             const std::vector<std::pair<std::string, int>>& inputs,
+             std::vector<Instance> &&instances);
 
-  const DefnRef *getRef() const;
   Instance makeInstance(const std::string &name) const;
+
+  const IFace & getIFace() const { return interface; }
+  IFace & getIFace() { return interface; }
+  const std::string & getName() const { return name; }
+
+  void print(const std::string &prefix = "") const;
 };
 
 class Circuit {
 private:
-  std::vector<Definition> definitions;
+  std::list<Definition> definitions;
   Definition *top_defn;
 public:
-  Circuit()
-    : definitions(),
-      top_defn(nullptr)
+  Circuit(std::list<Definition>&& defns)
+    : definitions(move(defns)),
+      top_defn(&definitions.back())
   {}
 
-  void AddDefinition(Definition &&defn);
+  void print() const;
 };
 
 }

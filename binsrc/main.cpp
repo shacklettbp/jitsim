@@ -40,6 +40,7 @@ int main(int argc, char *argv[])
   }
 
   JITSim::Circuit circuit = loadJSON(argv[1]);
+  circuit.print();
 
   JITSim::initializeNativeTarget();
   JITSim::JIT jit;
