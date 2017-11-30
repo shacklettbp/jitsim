@@ -3,48 +3,81 @@
 #include <unordered_map>
 #include <list>
 #include <iostream>
+#include <cassert>
+#include <string>
+#include <sstream>
 
 namespace JITSim {
 
 using namespace std;
 
-Select::Select(ValueSlice &&slice_) 
-  : slices()
+void ValueSlice::extend(const ValueSlice &other)
 {
-  slices.emplace_back(move(slice_));
+  width += other.width;
 }
+
+Select::Select(ValueSlice &&slice) 
+  : Select(move(vector<ValueSlice>(1, move(slice))))
+{}
 
 Select::Select(std::vector<ValueSlice> &&slices_)
   : slices(move(slices_))
-{}
+{
+  compressSlices();
+}
 
-IFace::IFace(const vector<pair<string, int>>& outputs_,
+void Select::compressSlices()
+{
+  vector<ValueSlice> new_slices;
+  new_slices.emplace_back(slices.front());
+  for (unsigned i = 1; i < slices.size(); i++) {
+    const ValueSlice &cur_slice = slices[i];
+    ValueSlice &new_slice = new_slices.back();
+
+    if (cur_slice.getValue() == new_slice.getValue() &&
+        cur_slice.getOffset() == new_slice.getEndIdx()) {
+
+        new_slice.extend(cur_slice);
+    } else {
+      // Can't merge these slices
+      new_slices.emplace_back(cur_slice);
+    }
+  }
+
+  slices = move(new_slices);
+  if (slices.size() == 1) {
+    has_many_slices = false;
+    if (slices[0].isWhole()) {
+      direct_value = slices[0].getValue();
+    }
+  }
+}
+
+IFace::IFace(const string &name_,
+             const vector<pair<string, int>>& outputs_,
              const vector<pair<string, int>>& inputs_,
              bool is_defn)
-  : outputs(), 
+  : name(name_),
+    outputs(), 
     inputs(),
-    output_names(),
-    input_names(),
     input_lookup(),
     output_lookup(),
     is_definition(is_defn)
 {
   for (auto &name_pair : outputs_) {
-    output_names.emplace_back(name_pair.first);
-    outputs.emplace_back(name_pair.second, this);
-  }
-
-  for (unsigned i = 0; i < outputs.size(); i++) {
-    output_lookup[output_names[i]] = &outputs[i];
+    outputs.emplace_back(name_pair.first, name_pair.second);
   }
 
   for (auto &name_pair : inputs_) {
-    input_names.emplace_back(name_pair.first);
-    inputs.emplace_back(name_pair.second);
+    inputs.emplace_back(name_pair.first, name_pair.second);
   }
 
-  for (unsigned i = 0; i < inputs.size(); i++) {
-    input_lookup[input_names[i]] = &inputs[i];
+  for (Value &output : outputs) {
+    output_lookup[output.getName()] = &output;
+  }
+
+  for (Input &input : inputs) {
+    input_lookup[input.getName()] = &input;
   }
 }
 
@@ -73,7 +106,7 @@ Instance::Instance(const string &name_,
                    const vector<pair<string, int>>& inputs,
                    const Definition *defn_)
   : name(name_),
-    interface(outputs, inputs, false),
+    interface(name, outputs, inputs, false),
     defn(defn_)
 {
 }
@@ -83,31 +116,67 @@ Definition::Definition(const string &name_,
                        const vector<pair<string, int>>& inputs,
                        vector<Instance> &&insts)
   : name(name_),
-    interface(outputs, inputs, true),
+    interface("self", outputs, inputs, true),
     instances(move(insts)),
     pre_instances(),
-    post_instances()
+    post_instances(),
+    stateful()
 {
-  // FIXME populate pre and post
+  // FIXME populate simulation information
 }
 
 Instance Definition::makeInstance(const string &name) const
 {
   vector<pair<string, int>> outputs;
   vector<pair<string, int>> inputs;
-  for (const string &name : interface.getInputNames()) {
-    const Input *input = interface.getInput(name);
-    outputs.emplace_back(make_pair(name, input->getWidth()));
+  for (const Input &input : interface.getInputs()) {
+    outputs.emplace_back(make_pair(input.getName(), input.getWidth()));
   }
 
-  for (const string &name : interface.getOutputNames()) {
-    const Value *val = interface.getOutput(name);
-    inputs.emplace_back(make_pair(name, val->getWidth()));
+  for (const Value &val  : interface.getOutputs()) {
+    inputs.emplace_back(make_pair(val.getName(), val.getWidth()));
   }
 
-  Instance inst = Instance(name, outputs, inputs, this);
+  return Instance(name, outputs, inputs, this);
+}
 
-  return inst;
+string ValueSlice::repr() const
+{
+  stringstream r;
+  r << iface->getName() << "." << val->getName();
+
+  if (!is_whole) {
+    if (width > 1) {
+      r << "[" << offset << ":" << getEndIdx() << "]";
+    } else {
+      r << "[" << offset << "]";
+    }
+  }
+
+  return r.str();
+}
+
+string Select::repr() const
+{
+  stringstream rep;
+
+  if (has_many_slices) {
+    rep << "{";
+  }
+
+  for (unsigned i = 0; i < slices.size(); i++) {
+    const ValueSlice &slice = slices[i];
+    rep << slice.repr();
+    if (i != slices.size() - 1) {
+      rep << ", ";
+    }
+  }
+
+  if (has_many_slices) {
+    rep << "}";
+  }
+
+  return rep.str();
 }
 
 void IFace::print(const string &prefix) const 
@@ -117,9 +186,8 @@ void IFace::print(const string &prefix) const
   } else {
     cout << prefix << "Outputs:\n";
   }
-  for (const string &oname : output_names) {
-    const Value *output = getOutput(oname);
-    cout << prefix << "  " << oname << ": " << output->getWidth() << endl;
+  for (const Value &output : outputs) {
+    cout << prefix << "  " << output.getName() << ": " << output.getWidth() << endl;
   }
 
   if (is_definition) {
@@ -127,11 +195,22 @@ void IFace::print(const string &prefix) const
   } else {
     cout << prefix << "Inputs:\n";
   }
-  for (const string &iname : input_names) {
-    const Input *input = getInput(iname);
-    cout << prefix << "  " << iname << ": " << input->getWidth() << endl;
+  for (const Input &input : inputs) {
+    cout << prefix << "  " << input.getName() << ": " << input.getWidth() << endl;
   }
 }
+
+void IFace::print_connectivity(const string &prefix) const 
+{
+  for (const Input &input : inputs) {
+    cout << prefix << input.getName() << ": ";
+    assert(input.isConnected());
+
+    const Select &sel = input.getSelect();
+    cout << sel.repr() << endl;
+  }
+}
+
 
 void Instance::print(const string &prefix) const
 {
@@ -141,17 +220,24 @@ void Instance::print(const string &prefix) const
 void Definition::print(const string &prefix) const
 {
   cout << prefix << "Module: " << getName() << endl;
-  cout << "  Interface:\n";
+  cout << prefix << "  Interface:\n";
   interface.print("    ");
 
   if (instances.size() == 0) {
     // FIXME print something for primitives
     return;
   }
-  cout << "  Instances:\n";
+  cout << prefix << "  Instances:\n";
 
   for (const Instance &inst : instances) {
     inst.print(prefix + "    ");
+  }
+
+  cout << prefix << "  Connectivity:\n";
+  for (const Instance &inst : instances) {
+    cout << prefix << "    " << inst.getName() << ":\n";
+    const IFace &iface = inst.getIFace();
+    iface.print_connectivity(prefix + "      ");
   }
 }
 

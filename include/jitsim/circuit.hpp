@@ -1,10 +1,12 @@
 #ifndef JITSIM_CIRCUIT_HPP_INCLUDED
 #define JITSIM_CIRCUIT_HPP_INCLUDED
 
+#include <cassert>
 #include <unordered_map>
 #include <string>
+#include <iostream>
 #include <vector>
-#include <list>
+#include <deque>
 #include <utility>
 #include <optional>
 
@@ -15,83 +17,106 @@ class ValueSlice;
 
 class Value {
 private:
+  std::string name;
   int width;
-
-  const IFace *attached_interface;
 public:
-  Value(int w, const IFace *attached_to)
-    : width(w), attached_interface(attached_to)
+  Value(const std::string &name_, int w)
+    : name(name_), width(w)
   {}
 
-  ValueSlice getSlice(int offset, int width) const;
-
-  const IFace *getInterface() const { return attached_interface; }
-
+  const std::string & getName() const { return name; }
   int getWidth() const { return width; }
 };
 
 class ValueSlice {
 private:
+  const IFace *iface;
   const Value *val;
   int offset;
   int width;
+  bool is_whole;
+
 public:
-  ValueSlice(const Value *val_, int offset_, int width_)
-    : val(val_), offset(offset_), width(width_)
+  ValueSlice(const IFace *iface_, const Value *val_, int offset_, int width_)
+    : iface(iface_), val(val_), offset(offset_), width(width_),
+      is_whole(offset == 0 && width == val->getWidth())
   {}
+
+  const IFace * getIFace() const { return iface; }
+  const Value * getValue() const { return val; }
+
+  int getEndIdx() const { return offset + width; }
+  int getWidth() const { return width; }
+  int getOffset() const { return offset; }
+  bool isWhole() const { return is_whole; }
+
+  void extend(const ValueSlice &other);
+
+  std::string repr() const;
 };
 
 class Select {
 private:
   std::vector<ValueSlice> slices;
 
-  bool many_slices = false;
-  bool direct_value = false;
+  bool has_many_slices = true;
+
+  const Value *direct_value = nullptr;
+
+  void compressSlices();
 public:
   Select(ValueSlice &&slice_);
   Select(std::vector<ValueSlice> &&slices_);
 
   const std::vector<ValueSlice> & getSlices() const { return slices; }
 
+  std::string repr() const;
 };
 
 class Input {
 private:
+  std::string name;
   int width;
   std::optional<Select> select;
 public:
-  Input(int w)
-    : width(w), select() {}
+  Input(const std::string &name_, int w)
+    : name(name_), width(w), select() {}
 
   bool isConnected() const { return select.has_value(); }
   void connect(Select && conn) { select = std::move(conn); }
 
   const Select& getSelect() const { return *select; }
 
+  const std::string & getName() const { return name; }
   int getWidth() const { return width; }
 };
 
+class Definition;
+class Instance;
+
 class IFace {
 private:
+  std::string name;
   std::vector<Value> outputs;
   std::vector<Input> inputs;
-  std::vector<std::string> output_names;
-  std::vector<std::string> input_names;
-
   std::unordered_map<std::string, Input *> input_lookup;
   std::unordered_map<std::string, Value *> output_lookup;
-
   bool is_definition;
-public:
-  IFace(const std::vector<std::pair<std::string, int>>& outputs,
-        const std::vector<std::pair<std::string, int>>& inputs,
-        bool is_defn);
 
+public:
+  IFace(const std::string &name,
+        const std::vector<std::pair<std::string, int>>& outputs,
+        const std::vector<std::pair<std::string, int>>& inputs,
+        const bool is_definition);
+
+  IFace(const IFace &) = delete;
+  IFace(IFace &&) = default;
+
+  const std::string & getName() const { return name; }
   const std::vector<Value> & getOutputs() const { return outputs; }
   const std::vector<Input> & getInputs() const { return inputs; }
-
-  const std::vector<std::string> & getOutputNames() const { return output_names; }
-  const std::vector<std::string> & getInputNames() const { return input_names; }
+  std::vector<Value> & getOutputs() { return outputs; }
+  std::vector<Input> & getInputs() { return inputs; }
 
   const Value * getOutput(const std::string &name) const;
   const Input * getInput(const std::string &name) const;
@@ -99,9 +124,11 @@ public:
   Input * getInput(const std::string &name);
 
   void print(const std::string &prefix = "") const;
-};
+  void print_connectivity(const std::string &prefix = "") const;
 
-class Definition;
+  bool isDefinition() const { return is_definition; }
+  bool isInstance() const { return !is_definition; }
+};
 
 class Instance {
 private:
@@ -130,6 +157,8 @@ private:
 
   std::vector<const Instance *> pre_instances;
   std::vector<const Instance *> post_instances;
+
+  bool stateful;
 public:
   Definition(const std::string &name,
              const std::vector<std::pair<std::string, int>>& outputs,
@@ -147,10 +176,10 @@ public:
 
 class Circuit {
 private:
-  std::list<Definition> definitions;
+  std::deque<Definition> definitions;
   Definition *top_defn;
 public:
-  Circuit(std::list<Definition>&& defns)
+  Circuit(std::deque<Definition>&& defns)
     : definitions(move(defns)),
       top_defn(&definitions.back())
   {}

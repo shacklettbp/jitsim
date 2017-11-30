@@ -53,8 +53,7 @@ GenInstances(CoreIR::ModuleDef *core_def,
 
     const Definition *defn = mod_map.find(coreinst_mod)->second;
 
-    Instance inst = defn->makeInstance(name);
-    instances.emplace_back(move(inst));
+    instances.emplace_back(move(defn->makeInstance(name)));
     core_instances.push_back(coreinst);
   }
 
@@ -67,12 +66,11 @@ GenInstances(CoreIR::ModuleDef *core_def,
 
 static void ProcessPrimitive(CoreIR::Module *core_mod,
                              unordered_map<CoreIR::Module *, const Definition *> &mod_map,
-                             list<Definition> &definitions)
+                             deque<Definition> &definitions)
 {
   auto interface = GenInterface(core_mod);
 
-  Definition defn(core_mod->getName(), interface.first, interface.second, move(vector<Instance>()));
-  definitions.emplace_back(move(defn));
+  definitions.emplace_back(core_mod->getName(), interface.first, interface.second, move(vector<Instance>()));
   mod_map[core_mod] = &definitions.back();
 }
 
@@ -93,26 +91,28 @@ static ValueSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn
     is_arrslice = true;
   } 
 
+  const IFace* iface = nullptr;
   const Value* val = nullptr;
   if (parent_w->getKind() == CoreIR::Wireable::WK_Instance) {
     CoreIR::Instance *coreparentinst = static_cast<CoreIR::Instance *>(parent_w);
     Instance *sourceinst = inst_map.find(coreparentinst)->second;
-    val = sourceinst->getIFace().getOutput(source->getSelStr());
+    iface = &sourceinst->getIFace();
+    val = iface->getOutput(source->getSelStr());
   } else if (parent_w->getKind() == CoreIR::Wireable::WK_Interface) {
-    val = defn.getIFace().getOutput(source->getSelStr());
+    iface = &defn.getIFace();
+    val = iface->getOutput(source->getSelStr());
   } else {
     assert(false);
   }
-  return ValueSlice(val, parent_idx, is_arrslice ? 1 : val->getWidth());
+  return ValueSlice(iface, val, parent_idx, is_arrslice ? 1 : val->getWidth());
 }
 
 static void SetupIFaceConnections(CoreIR::Wireable *core_w, IFace &iface, const Definition &defn,
                                   const unordered_map<CoreIR::Instance *, Instance *> &inst_map)
 {
-  auto &input_names = iface.getInputNames();
+  for (Input &new_input : iface.getInputs()) {
+    const string &iname = new_input.getName();
 
-  for (auto &iname : input_names) {
-    Input *new_input = iface.getInput(iname);
     CoreIR::Select *in_sel = core_w->sel(iname);
     auto connected = in_sel->getConnectedWireables();
 
@@ -121,17 +121,17 @@ static void SetupIFaceConnections(CoreIR::Wireable *core_w, IFace &iface, const 
         assert(false);
       }
       vector<ValueSlice> slices;
-      for (int i = 0; i < new_input->getWidth(); i++) {
+      for (int i = 0; i < new_input.getWidth(); i++) {
         CoreIR::Select *arr_sel = in_sel->sel(to_string(i));
         connected = arr_sel->getConnectedWireables();
         assert(connected.size() == 1);
         slices.emplace_back(CreateSlice(*connected.begin(), defn, inst_map));
       }
-      new_input->connect(Select(move(slices)));
+      new_input.connect(Select(move(slices)));
     } else {
       assert(connected.size() == 1);
       ValueSlice slice = CreateSlice(*connected.begin(), defn, inst_map);
-      new_input->connect(Select(move(slice)));
+      new_input.connect(Select(move(slice)));
     }
   }
 }
@@ -152,7 +152,7 @@ static void SetupModuleConnections(CoreIR::ModuleDef *core_def, Definition &defn
 
 static void ProcessModules(CoreIR::Module *core_mod,
                            unordered_map<CoreIR::Module *, const Definition *> &mod_map,
-                           list<Definition> &definitions)
+                           deque<Definition> &definitions)
 {
   if (mod_map.find(core_mod) != mod_map.end()) {
     return;
@@ -177,16 +177,16 @@ static void ProcessModules(CoreIR::Module *core_mod,
   tie(defn_instances, defn_instmap) = GenInstances(core_def, mod_map);
   auto defn_if = GenInterface(core_mod);
 
-  Definition defn(core_mod->getName(), defn_if.first, defn_if.second, move(defn_instances));
-  SetupModuleConnections(core_def, defn, defn_instmap);
 
-  definitions.emplace_back(move(defn));
+  definitions.emplace_back(core_mod->getName(), defn_if.first, defn_if.second, move(defn_instances));
+  SetupModuleConnections(core_def, definitions.back(), defn_instmap);
+
   mod_map[core_mod] = &definitions.back();
 }
 
 Circuit BuildFromCoreIR(CoreIR::Module *core_mod)
 {
-  list<Definition> definitions;
+  deque<Definition> definitions;
   unordered_map<CoreIR::Module *, const Definition *> mod_map;
   ProcessModules(core_mod, mod_map, definitions);
 
