@@ -105,14 +105,11 @@ private:
   std::unordered_map<std::string, Input *> input_lookup;
   std::unordered_map<std::string, Value *> output_lookup;
   bool is_definition;
-
-  const SimInfo *siminfo;
 public:
   IFace(const std::string &name_,
         std::vector<Input> &&inputs_,
         std::vector<Value> &&outputs_,
-        const bool is_definition_,
-        const SimInfo *siminfo_);
+        const bool is_definition_);
 
   IFace(const IFace &) = delete;
   IFace(IFace &&) = default;
@@ -133,9 +130,6 @@ public:
 
   bool isDefinition() const { return is_definition; }
   bool isInstance() const { return !is_definition; }
-
-  const SimInfo * getSimInfo() const { return siminfo; }
-  void setSimInfo(const SimInfo *si) { siminfo = si; }
 };
 
 class Instance {

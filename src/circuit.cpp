@@ -56,15 +56,13 @@ void Select::compressSlices()
 IFace::IFace(const string &name_,
              vector<Input> &&inputs_,
              vector<Value> &&outputs_,
-             bool is_defn,
-             const SimInfo *siminfo_)
+             bool is_defn)
   : name(name_),
     inputs(move(inputs_)),
     outputs(move(outputs_)), 
     input_lookup(),
     output_lookup(),
-    is_definition(is_defn),
-    siminfo(siminfo_)
+    is_definition(is_defn)
 {
   for (Value &output : outputs) {
     output_lookup[output.getName()] = &output;
@@ -100,7 +98,7 @@ Instance::Instance(const string &name_,
                    vector<Value> &&outputs,
                    const Definition *defn_)
   : name(name_),
-    interface(name, move(inputs), move(outputs), false, &defn->getSimInfo()),
+    interface(name, move(inputs), move(outputs), false),
     defn(defn_)
 {
 }
@@ -118,22 +116,19 @@ Definition::Definition(const string &name_,
                        vector<Instance> &&insts,
                        function<void (IFace&, vector<Instance> &instances)> make_connections)
   : name(name_),
-    interface("self", move(inputs), move(outputs), true, nullptr),
+    interface("self", move(inputs), move(outputs), true),
     instances(move(insts)),
     siminfo(fully_connect(interface, instances, make_connections))
-{
-  interface.setSimInfo(&siminfo);
-}
+{}
 
 Definition::Definition(const string &name_,
                        vector<Input> &&inputs,
                        vector<Value> &&outputs)
   : name(name_),
-    interface("self", move(inputs), move(outputs), true, nullptr),
+    interface("self", move(inputs), move(outputs), true),
     instances(),
     siminfo(false) // FIXME
 {
-  interface.setSimInfo(&siminfo);
 }
 
 
