@@ -239,6 +239,8 @@ void Definition::print(const string &prefix) const
     const IFace &iface = inst.getIFace();
     iface.print_connectivity(prefix + "      ");
   }
+  cout << prefix << "    self:\n";
+  interface.print_connectivity(prefix + "      ");
 }
 
 void Circuit::print() const
