@@ -1,10 +1,11 @@
+#ifndef JITSIM_CIRCUIT_HPP_INCLUDED
+#define JITSIM_CIRCUIT_HPP_INCLUDED
+
 #include <unordered_map>
 #include <string>
 #include <vector>
 #include <utility>
 #include <optional>
-
-#include <coreir/ir/module.h>
 
 namespace JITSim {
 
@@ -42,10 +43,12 @@ public:
 class Select {
 private:
   std::vector<ValueSlice> slices;
+
+  bool many_slices = false;
+  bool direct_value = false;
 public:
-  Select(std::vector<ValueSlice> &&slices_)
-    : slices(std::move(slices_))
-  {}
+  Select(ValueSlice &&slice_);
+  Select(std::vector<ValueSlice> &&slices_);
 
   const std::vector<ValueSlice> & getSlices() const { return slices; }
 
@@ -74,8 +77,8 @@ private:
   std::vector<std::string> output_names;
   std::vector<std::string> input_names;
 
-  std::unordered_map<std::string, int> input_lookup;
-  std::unordered_map<std::string, int> output_lookup;
+  std::unordered_map<std::string, Input *> input_lookup;
+  std::unordered_map<std::string, Value *> output_lookup;
 
   bool is_definition;
 public:
@@ -89,8 +92,10 @@ public:
   const std::vector<std::string> & get_output_names() const { return output_names; }
   const std::vector<std::string> & get_input_names() const { return input_names; }
 
-  const Value & get_output(const std::string &name) const;
-  const Input & get_input(const std::string &name) const;
+  const Value * get_output(const std::string &name) const;
+  const Input * get_input(const std::string &name) const;
+  Value * get_output(const std::string &name);
+  Input * get_input(const std::string &name);
 };
 
 class DefnRef {
@@ -106,6 +111,10 @@ private:
   const DefnRef *defn;
 public:
   Instance(const std::string &name_, IFace &&iface, const DefnRef *defn_);
+
+  IFace & getIFace() { return interface; }
+  const IFace & getIFace() const { return interface; }
+  const std::string & getName() const { return name; }
 };
 
 class Definition {
@@ -126,14 +135,17 @@ public:
 
 class Circuit {
 private:
-  std::vector<Definition> definitions = {};
-  Definition *top_defn = nullptr;
+  std::vector<Definition> definitions;
+  Definition *top_defn;
 public:
-  Circuit() {}
+  Circuit()
+    : definitions(),
+      top_defn(nullptr)
+  {}
 
   void AddDefinition(Definition &&defn);
 };
 
-Circuit BuildFromCoreIR(CoreIR::Module *core_mod);
-
 }
+
+#endif

@@ -4,6 +4,7 @@
 #include <jitsim/jitsim.hpp>
 #include <jitsim/JIT.hpp>
 #include <jitsim/circuit.hpp>
+#include <jitsim/coreir.hpp>
 #include <coreir/ir/context.h>
 
 using namespace std;

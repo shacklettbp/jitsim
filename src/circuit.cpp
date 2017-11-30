@@ -1,12 +1,21 @@
 #include <jitsim/circuit.hpp>
 
-#include <coreir/ir/moduledef.h>
-
-#include <unordered_set>
+#include <unordered_map>
+#include <list>
 
 namespace JITSim {
 
 using namespace std;
+
+Select::Select(ValueSlice &&slice_) 
+  : slices()
+{
+  slices.emplace_back(move(slice_));
+}
+
+Select::Select(std::vector<ValueSlice> &&slices_)
+  : slices(move(slices_))
+{}
 
 IFace::IFace(const vector<pair<string, int>>& outputs_,
              const vector<pair<string, int>>& inputs_,
@@ -20,28 +29,42 @@ IFace::IFace(const vector<pair<string, int>>& outputs_,
     is_definition(is_defn)
 {
   for (auto &name_pair : outputs_) {
-    output_names.push_back(name_pair.first);
-    outputs.push_back(Value(name_pair.second, this));
-    output_lookup[name_pair.first] = outputs.size() - 1;
+    output_names.emplace_back(name_pair.first);
+    outputs.emplace_back(name_pair.second, this);
+  }
+
+  for (unsigned i = 0; i < outputs.size(); i++) {
+    output_lookup[output_names[i]] = &outputs[i];
   }
 
   for (auto &name_pair : inputs_) {
-    input_names.push_back(name_pair.first);
-    inputs.push_back(Input(name_pair.second));
-    input_lookup[name_pair.first] = inputs.size() - 1;
+    input_names.emplace_back(name_pair.first);
+    inputs.emplace_back(name_pair.second);
+  }
+
+  for (unsigned i = 0; i < inputs.size(); i++) {
+    input_lookup[input_names[i]] = &inputs[i];
   }
 }
 
-const Value & IFace::get_output(const std::string &name) const
+const Value * IFace::get_output(const std::string &name) const
 {
-  auto iter = output_lookup.find(name);
-  return outputs[iter->second];
+  return output_lookup.find(name)->second;
 }
 
-const Input & IFace::get_input(const std::string &name) const
+Value * IFace::get_output(const std::string &name)
 {
-  auto iter = input_lookup.find(name);
-  return inputs[iter->second];
+  return output_lookup.find(name)->second;
+}
+
+const Input * IFace::get_input(const std::string &name) const
+{
+  return input_lookup.find(name)->second;
+}
+
+Input * IFace::get_input(const std::string &name)
+{
+  return input_lookup.find(name)->second;
 }
 
 Instance::Instance(const string &name_, IFace &&iface, const DefnRef *defn_) 
@@ -54,10 +77,10 @@ Instance::Instance(const string &name_, IFace &&iface, const DefnRef *defn_)
 Definition::Definition(const string &name_, IFace &&iface, vector<Instance> &&insts)
   : name(name_),
     interface(move(iface)),
-    instances(move(insts)),
-    pre_instances(),
+    instances(move(insts)), pre_instances(),
     post_instances()
 {
+  // FIXME populate pre and post
 }
 
 const DefnRef *Definition::getRef() const
@@ -71,14 +94,14 @@ Instance Definition::makeInstance(const string &name) const
 
   vector<pair<string, int>> outputs;
   vector<pair<string, int>> inputs;
-  for (const string &name : interface.get_output_names()) {
-    const Input &input = interface.get_input(name);
-    outputs.emplace_back(make_pair(name, input.getWidth()));
+  for (const string &name : interface.get_input_names()) {
+    const Input *input = interface.get_input(name);
+    outputs.emplace_back(make_pair(name, input->getWidth()));
   }
 
-  for (const string &name : interface.get_input_names()) {
-    const Value &val = interface.get_output(name);
-    inputs.emplace_back(make_pair(name, val.getWidth()));
+  for (const string &name : interface.get_output_names()) {
+    const Value *val = interface.get_output(name);
+    inputs.emplace_back(make_pair(name, val->getWidth()));
   }
 
   IFace inst_interface(outputs, inputs, false);
@@ -88,39 +111,10 @@ Instance Definition::makeInstance(const string &name) const
   return inst;
 }
 
-static void ProcessCoreIRModules(CoreIR::ModuleDef *core_def, unordered_set<CoreIR::ModuleDef *> &visited_modules,
-                                 vector<Definition> &definitions)
+void Circuit::AddDefinition(Definition &&defn)
 {
-  if (visited_modules.find(core_def) == visited_modules.end()) {
-    visited_modules.insert(core_def);
-  } else {
-    return;
-  }
-
-  auto instances = core_def->getInstances();
-
-  for (auto inst_p : instances) {
-    auto inst = inst_p.second;
-    auto mod = inst->getModuleRef();
-
-    if (mod->hasDef()) {
-      ProcessCoreIRModules(mod->getDef(), visited_modules, definitions);
-    }
-  }
-
-  cout << core_def->getName() << endl;
-  for (auto inst_p : instances) {
-    cout << "\t" << inst_p.first << ": " << inst_p.second->getModuleRef()->getLongName() << endl;
-  }
-}
-
-Circuit BuildFromCoreIR(CoreIR::Module *core_mod)
-{
-  vector<Definition> definitions;
-  unordered_set<CoreIR::ModuleDef *> visited;
-  ProcessCoreIRModules(core_mod->getDef(), visited, definitions);
-
-  return Circuit();
+  definitions.emplace_back(move(defn));
+  top_defn = &definitions.back();
 }
 
 }
