@@ -203,6 +203,8 @@ public:
   {}
 
   void print() const;
+
+  const std::deque<Definition>& getDefinitions() const { return definitions; }
 };
 
 }

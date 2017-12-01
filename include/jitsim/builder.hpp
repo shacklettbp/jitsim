@@ -30,6 +30,8 @@ public:
   llvm::Value * lookupValue(const std::string &name);
   void addValue(const std::string &name, llvm::Value *val);
 
+  llvm::BasicBlock * addBasicBlock(const std::string &name, bool setEntry = true);
+
   llvm::LLVMContext * getContext() { return context; }
   llvm::IRBuilder<> & getIRBuilder() { return ir_builder; }
 };
