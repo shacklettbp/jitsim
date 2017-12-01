@@ -13,7 +13,7 @@ namespace JITSim {
 using namespace llvm;
 
 FunctionEnvironment::FunctionEnvironment(Function *func_, ModuleEnvironment *parent_)
-  : func(func_), parent(parent_), context(parent->getContext()), ir_builder(*context)
+  : func(func_), parent(parent_), context(&parent->getContext()), ir_builder(*context)
 {
 }
 
@@ -37,10 +37,27 @@ BasicBlock * FunctionEnvironment::addBasicBlock(const std::string &name, bool se
   return bb;
 }
 
-FunctionEnvironment ModuleEnvironment::makeFunction(const std::string &name, FunctionType *function_type)
+Function * ModuleEnvironment::getFunctionDecl(const std::string &name)
+{
+  auto iter = named_functions.find(name);
+  if (iter == named_functions.end()) {
+    return nullptr;
+  } else {
+    return iter->second;
+  }
+}
+
+Function * ModuleEnvironment::makeFunctionDecl(const std::string &name, FunctionType *function_type)
 {
   Function *fn = Function::Create(function_type, Function::ExternalLinkage, name, module.get());
   named_functions[name] = fn;
+
+  return fn;
+}
+
+FunctionEnvironment ModuleEnvironment::makeFunction(const std::string &name, FunctionType *function_type)
+{
+  Function *fn = makeFunctionDecl(name, function_type);
 
   return FunctionEnvironment(fn, this);
 }

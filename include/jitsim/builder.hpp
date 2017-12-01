@@ -32,7 +32,7 @@ public:
 
   llvm::BasicBlock * addBasicBlock(const std::string &name, bool setEntry = true);
 
-  llvm::LLVMContext * getContext() { return context; }
+  llvm::LLVMContext & getContext() { return *context; }
   llvm::IRBuilder<> & getIRBuilder() { return ir_builder; }
 };
 
@@ -47,8 +47,10 @@ public:
     : module(move(module_)), context(context_)
   {}
 
-  llvm::LLVMContext *getContext() { return context; }
+  llvm::LLVMContext & getContext() { return *context; }
 
+  llvm::Function * getFunctionDecl(const std::string &name);
+  llvm::Function * makeFunctionDecl(const std::string &name, llvm::FunctionType *function_type);
   FunctionEnvironment makeFunction(const std::string &name, llvm::FunctionType *function_type);
 
   std::unique_ptr<llvm::Module> returnModule() { return move(module); }
