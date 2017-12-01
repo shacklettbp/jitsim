@@ -10,7 +10,7 @@ using namespace std;
 Primitive BuildReg(CoreIR::Module *mod)
 {
   return Primitive(true,
-    [&](auto &env, auto &args)
+    [&](auto &env, auto &args, auto *type)
     {
       return nullptr;
     },
@@ -26,9 +26,14 @@ Primitive BuildReg(CoreIR::Module *mod)
 Primitive BuildAdd(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args)
+    [&](auto &env, auto &args, auto *type)
     {
-      return nullptr;
+      llvm::Value *first = args[0];
+      llvm::Value *second = args[1];
+      llvm::Value *sum = env.getIRBuilder().CreateAdd(first, second, "add");
+
+      return env.getIRBuilder().CreateInsertValue(llvm::UndefValue::get(type),
+                                                sum, { 0 }, "output");
     }
   );
 }
