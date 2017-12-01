@@ -10,6 +10,8 @@ namespace JITSim {
 
 std::unique_ptr<llvm::Module> ModuleForDefinition(Builder &builder, const Definition &definition);
 
+std::vector<std::unique_ptr<llvm::Module>> ModulesForCircuit(Builder &builder, const Circuit &circuit);
+
 }
 
 #endif

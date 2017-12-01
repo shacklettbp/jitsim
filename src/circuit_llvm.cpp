@@ -2,7 +2,9 @@
 
 namespace JITSim {
 
-std::unique_ptr<llvm::Module> ModuleForDefinition(Builder &builder, const Definition &definition)
+using namespace llvm;
+
+std::unique_ptr<Module> ModuleForDefinition(Builder &builder, const Definition &definition)
 {
   ModuleEnvironment mod_env = builder.makeModule(definition.getName());
   const SimInfo &siminfo = definition.getSimInfo();
@@ -10,6 +12,17 @@ std::unique_ptr<llvm::Module> ModuleForDefinition(Builder &builder, const Defini
   (void)siminfo;
 
   return mod_env.returnModule();
+}
+
+std::vector<std::unique_ptr<Module>> ModulesForCircuit(Builder &builder, const Circuit &circuit)
+{
+  std::vector<std::unique_ptr<Module>> modules;
+
+  for (const Definition &defn : circuit.getDefinitions()) {
+    modules.push_back(ModuleForDefinition(builder, defn));
+  }
+
+  return modules;
 }
 
 }
