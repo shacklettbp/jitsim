@@ -4,7 +4,7 @@ namespace JITSim {
 
 std::unique_ptr<llvm::Module> ModuleForDefinition(Builder &builder, const Definition &definition)
 {
-  ModuleEnvironment mod_env = builder.MakeModule(definition.getName());
+  ModuleEnvironment mod_env = builder.makeModule(definition.getName());
   const SimInfo &siminfo = definition.getSimInfo();
 
   (void)siminfo;
@@ -12,4 +12,4 @@ std::unique_ptr<llvm::Module> ModuleForDefinition(Builder &builder, const Defini
   return mod_env.returnModule();
 }
 
-};
+}
