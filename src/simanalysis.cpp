@@ -116,18 +116,18 @@ SimInfo::SimInfo(const IFace &interface, const vector<Instance> &instances)
   : state_deps(),
     output_deps(),
     stateful_insts(),
-    is_stateful(false),
-    is_primitive(false)
+    primitive(),
+    is_stateful(false)
 {
   is_stateful = order_instances(interface, instances, state_deps, output_deps, stateful_insts);
 }
 
-SimInfo::SimInfo(const Primitive &primitive)
+SimInfo::SimInfo(const Primitive &primitive_)
   : state_deps(),
     output_deps(),
     stateful_insts(),
-    is_stateful(primitive.is_stateful),
-    is_primitive(true)
+    primitive(primitive_),
+    is_stateful(primitive->is_stateful)
 {
 }
 

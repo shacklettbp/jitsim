@@ -25,13 +25,10 @@ Primitive BuildReg(CoreIR::Module *mod)
 
 Primitive BuildAdd(CoreIR::Module *mod)
 {
-  return Primitive(false,
+  return Primitive(
     [&](auto &env, auto &args)
     {
       return nullptr;
-    },
-    [&](auto &env, auto &args)
-    {
     }
   );
 }
