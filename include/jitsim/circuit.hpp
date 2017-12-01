@@ -107,9 +107,6 @@ public:
   int getWidth() const { return width; }
 };
 
-class Definition;
-class Instance;
-
 class IFace {
 private:
   std::string name;
