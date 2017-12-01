@@ -9,12 +9,34 @@ using namespace std;
 
 Primitive BuildReg(CoreIR::Module *mod)
 {
-  return Primitive(true, [&]() { return nullptr; }, [&]() { return nullptr; });
+  return Primitive(true,
+    [&](auto &env, auto &args)
+    {
+      return nullptr;
+    },
+    [&](auto &env, auto &args)
+    {
+    },
+    [&](auto &env)
+    {
+    }
+  );
 }
 
 Primitive BuildAdd(CoreIR::Module *mod)
 {
-  return Primitive(false, [&]() { return nullptr; }, [&]() { return nullptr; });
+  return Primitive(false,
+    [&](auto &env, auto &args)
+    {
+      return nullptr;
+    },
+    [&](auto &env, auto &args)
+    {
+    },
+    [&](auto &env)
+    {
+    }
+  );
 }
 
 static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> InitializeMapping()

@@ -1,5 +1,5 @@
-#ifndef JITSIM_BUILDER_HPP_INCLUDED
-#define JITSIM_BUILDER_HPP_INCLUDED
+#ifndef JITSIM_BUILDER_H_HPP_INCLUDED
+#define JITSIM_BUILDER_H_HPP_INCLUDED
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -16,7 +16,6 @@ class BuilderHardcoded {
   private:
     llvm::LLVMContext context;
     llvm::IRBuilder<> ir_builder;
-    //std::map<std::string, llvm::Value *> NamedValues; // Not yet used.
   public:
 
     BuilderHardcoded();
