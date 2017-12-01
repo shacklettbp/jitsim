@@ -12,7 +12,7 @@
 
 namespace JITSim {
 
-
+class Value;
 class ModuleEnvironment;
 
 class FunctionEnvironment {
@@ -21,19 +21,23 @@ private:
   ModuleEnvironment *parent;
   llvm::LLVMContext *context;
 
-  std::unordered_map<std::string, llvm::Value *> named_values; 
+  std::unordered_map<const JITSim::Value *, llvm::Value *> named_values; 
   llvm::IRBuilder<> ir_builder;
 
 public:
   FunctionEnvironment(llvm::Function *func_, ModuleEnvironment *parent_);
 
-  llvm::Value * lookupValue(const std::string &name);
-  void addValue(const std::string &name, llvm::Value *val);
+  llvm::Value * lookupValue(const JITSim::Value *) const;
+  void addValue(const JITSim::Value *, llvm::Value *val);
 
   llvm::BasicBlock * addBasicBlock(const std::string &name, bool setEntry = true);
 
+  llvm::Function * getFunction() { return func; }
+  ModuleEnvironment & getModule() { return *parent; }
   llvm::LLVMContext & getContext() { return *context; }
   llvm::IRBuilder<> & getIRBuilder() { return ir_builder; }
+
+  void verify() { llvm::verifyFunction(*func); }
 };
 
 class ModuleEnvironment {

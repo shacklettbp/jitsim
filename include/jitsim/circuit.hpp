@@ -86,6 +86,9 @@ public:
 
   const std::vector<ValueSlice> & getSlices() const { return slices; }
 
+  bool isDirect() const { return direct_value != nullptr; }
+  const Value *getDirect() { return direct_value->getValue(); }
+
   std::string repr() const;
 };
 
@@ -99,9 +102,9 @@ public:
     : name(name_), width(w), select() {}
 
   bool isConnected() const { return select.has_value(); }
-  void connect(Select && conn) { select = std::move(conn); }
+  void connect(Select &&conn) { select = std::move(conn); }
 
-  const Select& getSelect() const { return *select; }
+  const Select & getSelect() const { return *select; }
 
   const std::string & getName() const { return name; }
   int getWidth() const { return width; }
