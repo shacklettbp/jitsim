@@ -14,6 +14,8 @@
 #include <functional>
 #include <optional>
 
+#include <llvm/ADT/APInt.h>
+
 namespace JITSim {
 
 class IFace;
@@ -43,7 +45,7 @@ private:
   int offset;
   int width;
   bool is_whole;
-  std::optional<std::vector<bool>> constant;
+  std::optional<llvm::APInt> constant;
 
 public:
   ValueSlice(const Definition *definition_, const Instance *instance_,
@@ -181,7 +183,7 @@ public:
   Definition(const std::string &name,
              std::vector<Input> &&inputs,
              std::vector<Value> &&outputs,
-             const Primitive & primitive);
+             const Primitive &primitive);
 
   Instance makeInstance(const std::string &name) const;
 

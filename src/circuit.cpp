@@ -6,6 +6,9 @@
 #include <cassert>
 #include <string>
 #include <sstream>
+#include <numeric>
+
+#include <llvm/ADT/StringRef.h>
 
 namespace JITSim {
 
@@ -20,16 +23,34 @@ ValueSlice::ValueSlice(const Definition *definition_, const Instance *instance_,
     constant()
 {}
 
+llvm::APInt makeAPInt(const std::vector<bool> &constant)
+{
+  string s(constant.size(), '0');
+  for (unsigned i = 0; i < constant.size(); i++) {
+    if (constant[i]) {
+      s[i] = '1';
+    }
+  }
+  return llvm::APInt(constant.size(), llvm::StringRef(s), 2);
+}
+
 ValueSlice::ValueSlice(const std::vector<bool> &constant_)
   : definition(nullptr), instance(nullptr), iface(nullptr),
     val(nullptr), offset(0), width(constant_.size()),
     is_whole(true),
-    constant(constant_)
+    constant(makeAPInt(constant_))
 {}
 
 void ValueSlice::extend(const ValueSlice &other)
 {
   width += other.width;
+
+  if (isConstant()) {
+    llvm::APInt new_const = other.constant->zext(width);
+    new_const <<= (width - other.width);
+    new_const |= constant->zext(width);
+    *constant = new_const;
+  }
 }
 
 Select::Select(ValueSlice &&slice) 
@@ -50,8 +71,9 @@ void Select::compressSlices()
     const ValueSlice &cur_slice = slices[i];
     ValueSlice &new_slice = new_slices.back();
 
-    if (cur_slice.getValue() == new_slice.getValue() &&
-        cur_slice.getOffset() == new_slice.getEndIdx()) {
+    if ((cur_slice.getValue() == new_slice.getValue() &&
+        cur_slice.getOffset() == new_slice.getEndIdx()) ||
+        (cur_slice.isConstant() && new_slice.isConstant())) {
 
         new_slice.extend(cur_slice);
     } else {
@@ -172,17 +194,22 @@ Instance Definition::makeInstance(const string &name) const
 string ValueSlice::repr() const
 {
   stringstream r;
-  r << iface->getName() << "." << val->getName();
 
-  if (!is_whole) {
-    if (width > 1) {
-      r << "[" << offset << ":" << getEndIdx() << "]";
-    } else {
-      r << "[" << offset << "]";
+  if (isConstant()) {
+    return constant->toString(10, false);
+  } else {
+    r << iface->getName() << "." << val->getName();
+
+    if (!is_whole) {
+      if (width > 1) {
+        r << "[" << offset << ":" << getEndIdx() << "]";
+      } else {
+        r << "[" << offset << "]";
+      }
     }
-  }
 
-  return r.str();
+    return r.str();
+  }
 }
 
 string Select::repr() const

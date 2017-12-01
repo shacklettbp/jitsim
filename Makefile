@@ -13,7 +13,7 @@ endif
 CXXFLAGS += -Iinclude
 LDFLAGS += -Lbuild
 
-CXXFLAGS += -I${HOME}/magma/coreir/include
+CXXFLAGS += -isystem ${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
 # LLVM

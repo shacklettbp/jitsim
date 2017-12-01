@@ -32,6 +32,7 @@ Primitive BuildCoreIRPrimitive(CoreIR::Module *mod)
   string fullname = mod->getNamespace()->getName() + "." + mod->getName();
 
   if (prim_map.count(fullname) == 0) {
+    cerr << fullname << endl;
     assert(false);
   }
 

@@ -4,6 +4,7 @@
 #include <coreir/ir/moduledef.h>
 #include <coreir/ir/namespace.h>
 #include <coreir/ir/types.h>
+#include <coreir/ir/value.h>
 
 #include <unordered_map>
 #include <list>
@@ -16,6 +17,12 @@
 namespace JITSim {
 
 using namespace std;
+
+static bool isConstantModule(CoreIR::Module *mod)
+{
+  return (mod->getNamespace()->getName() == "corebit" && mod->getName() == "const") ||
+         (mod->getNamespace()->getName() == "coreir" && mod->getName() == "const");
+}
 
 static pair<vector<Input>, vector<Value>>
 GenInterface(CoreIR::Module *core_mod)
@@ -54,6 +61,10 @@ GenInstances(CoreIR::ModuleDef *core_def,
     auto coreinst = coreinst_p.second;
     auto coreinst_mod = coreinst->getModuleRef();
 
+    if (isConstantModule(coreinst_mod)) {
+      continue;
+    }
+
     const Definition *defn = mod_map.find(coreinst_mod)->second;
 
     instances.emplace_back(move(defn->makeInstance(name)));
@@ -73,10 +84,26 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
 {
   auto interface = GenInterface(core_mod);
 
+  if (isConstantModule(core_mod)) {
+    /* Don't process consts as normal modules */
+    return;
+  }
+
   Primitive prim = BuildCoreIRPrimitive(core_mod);
 
   definitions.emplace_back(core_mod->getName(), move(interface.first), move(interface.second), prim);
   mod_map[core_mod] = &definitions.back();
+}
+
+static bool isConstantWireable(CoreIR::Wireable *w)
+{
+  if (w->getKind() != CoreIR::Wireable::WK_Instance) {
+    return false;
+  }
+
+  CoreIR::Instance *inst = static_cast<CoreIR::Instance *>(w);
+  CoreIR::Module *mod = inst->getModuleRef();
+  return isConstantModule(mod);
 }
 
 static ValueSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn,
@@ -96,21 +123,50 @@ static ValueSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn
     is_arrslice = true;
   } 
 
-  const Definition *definition = nullptr;
-  const Instance *instance = nullptr;
-  const Value* val = nullptr;
-  if (parent_w->getKind() == CoreIR::Wireable::WK_Instance) {
-    CoreIR::Instance *coreparentinst = static_cast<CoreIR::Instance *>(parent_w);
-    instance = inst_map.find(coreparentinst)->second;
-    val = instance->getIFace().getOutput(source->getSelStr());
-  } else if (parent_w->getKind() == CoreIR::Wireable::WK_Interface) {
-    val = defn.getIFace().getOutput(source->getSelStr());
-    definition = &defn;
+  if (isConstantWireable(parent_w)) {
+    CoreIR::Instance *const_inst = static_cast<CoreIR::Instance *>(parent_w);
+    bool found = false;
+    vector<bool> new_const;
+    for (auto& arg : const_inst->getModArgs()) {
+      if (arg.first == "value") {
+        found = true;
+        CoreIR::Value* val = arg.second;
+        if (const_inst->getModuleRef()->getNamespace()->getName() == "coreir") {
+          BitVector bv = val->get<BitVector>();
+          for (int i = 0; i < bv.bitLength(); i++) {
+            new_const.push_back(bv.get(i));
+          }
+        } else {
+          bool b = val->get<bool>();
+          new_const.push_back(b);
+        }
+        break;
+      }
+    }
+    assert(found);
+
+    if (is_arrslice) {
+      return ValueSlice(vector<bool>(new_const[parent_idx]));
+    } else {
+      return ValueSlice(new_const);
+    }
   } else {
-    assert(false);
+    const Definition *definition = nullptr;
+    const Instance *instance = nullptr;
+    const Value* val = nullptr;
+    if (parent_w->getKind() == CoreIR::Wireable::WK_Instance) {
+      CoreIR::Instance *coreparentinst = static_cast<CoreIR::Instance *>(parent_w);
+      instance = inst_map.find(coreparentinst)->second;
+      val = instance->getIFace().getOutput(source->getSelStr());
+    } else if (parent_w->getKind() == CoreIR::Wireable::WK_Interface) {
+      val = defn.getIFace().getOutput(source->getSelStr());
+      definition = &defn;
+    } else {
+      assert(false);
+    }
+    assert(val);
+    return ValueSlice(definition, instance, val, parent_idx, is_arrslice ? 1 : val->getWidth());
   }
-  assert(val);
-  return ValueSlice(definition, instance, val, parent_idx, is_arrslice ? 1 : val->getWidth());
 }
 
 static void SetupIFaceConnections(CoreIR::Wireable *core_w, IFace &iface, const Definition &defn,
@@ -148,6 +204,10 @@ static void SetupModuleConnections(CoreIR::ModuleDef *core_def, Definition &defn
 
   for (auto inst_p : core_def->getInstances()) {
     CoreIR::Instance *coreinst = inst_p.second;
+    if (isConstantWireable(coreinst)) {
+      continue;
+    }
+
     Instance *jitinst = inst_map.find(coreinst)->second;
     IFace &iface = jitinst->getIFace();
     SetupIFaceConnections(coreinst, iface, defn, inst_map);
