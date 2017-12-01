@@ -10,8 +10,9 @@ namespace JITSim {
 struct Primitive {
 public:
   bool is_stateful;
-  std::function<llvm::Value *()> make_inst;
-  std::function<llvm::Function *()> make_def;
+  std::function<llvm::Value *(FunctionEnvironment &env, const std::vector<Value *> &)> make_compute_output;
+  std::function<void (FunctionEnvironment &env, const std::vector<Value *> &)> make_update_state;
+  std::function<void (ModuleEnvironment &env)> make_def;
   Primitive(bool is_stateful_,
             std::function<llvm::Value *()> make_inst_,
             std::function<llvm::Function *()> make_def_)
