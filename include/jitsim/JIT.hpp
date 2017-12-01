@@ -47,12 +47,14 @@ class JIT {
     std::unique_ptr<llvm::orc::JITCompileCallbackManager> compile_callback_manager;
     llvm::orc::CompileOnDemandLayer<decltype(optimize_layer)> cod_layer;
 
+    std::string mangle(const std::string name);
+
   public:
     using ModuleHandle = decltype(cod_layer)::ModuleHandleT;
 
     JIT();
 
-    llvm::TargetMachine &getTargetMachine();
+    llvm::TargetMachine &getTargetMachine() { return *target_machine; };
 
     ModuleHandle addModule(std::unique_ptr<llvm::Module> module);
 

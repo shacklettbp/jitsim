@@ -30,8 +30,6 @@ JIT::JIT()
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
-TargetMachine &JIT::getTargetMachine() { return *target_machine; }
-
 JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module) {
   // Set data layout.
   module->setDataLayout(target_machine->createDataLayout());
@@ -58,10 +56,7 @@ JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module) {
 }
 
 JITSymbol JIT::findSymbol(const std::string name) {
-  std::string mangled_name;
-  raw_string_ostream mangled_name_stream(mangled_name);
-  Mangler::getNameWithPrefix(mangled_name_stream, name, data_layout);
-  return cod_layer.findSymbol(mangled_name_stream.str(), true);
+  return cod_layer.findSymbol(mangle(name), true);
 }   
 
 JITTargetAddress JIT::getSymbolAddress(const std::string name) {
@@ -70,6 +65,13 @@ JITTargetAddress JIT::getSymbolAddress(const std::string name) {
 
 void JIT::removeModule(ModuleHandle handle) {
   cantFail(cod_layer.removeModule(handle));
+}
+
+std::string JIT::mangle(const std::string name) {
+  std::string mangled_name;
+  raw_string_ostream mangled_name_stream(mangled_name);
+  Mangler::getNameWithPrefix(mangled_name_stream, name, data_layout);
+  return mangled_name_stream.str();
 }
 
 std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> module) {

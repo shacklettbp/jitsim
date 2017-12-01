@@ -35,7 +35,7 @@ std::unique_ptr<Module> BuilderHardcoded::makeStructModule() {
   ir_builder.SetInsertPoint(basic_block);
 
   // Get the argument(s).
-  Value* input_pair = fn->args().begin();
+  Value *input_pair = fn->args().begin();
   input_pair->setName("input_pair");
   
   // Access the fields of the struct.
