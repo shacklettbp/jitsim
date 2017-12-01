@@ -2,6 +2,7 @@
 #define JITSIM_CIRCUIT_HPP_INCLUDED
 
 #include <jitsim/simanalysis.hpp>
+#include <jitsim/primitive.hpp>
 
 #include <cassert>
 #include <unordered_map>
@@ -16,6 +17,8 @@
 namespace JITSim {
 
 class IFace;
+class Definition;
+class Instance;
 class ValueSlice;
 
 class Value {
@@ -33,29 +36,33 @@ public:
 
 class ValueSlice {
 private:
+  const Definition *definition;
+  const Instance *instance;
   const IFace *iface;
-  const SimInfo *siminfo;
   const Value *val;
   int offset;
   int width;
   bool is_whole;
+  std::optional<std::vector<bool>> constant;
 
 public:
-  ValueSlice(const IFace *iface_, const SimInfo *siminfo_,
-             const Value *val_, int offset_, int width_)
-    : iface(iface_), siminfo(siminfo_),
-      val(val_), offset(offset_), width(width_),
-      is_whole(offset == 0 && width == val->getWidth())
-  {}
+  ValueSlice(const Definition *definition_, const Instance *instance_,
+             const Value *val_, int offset_, int width_);
 
+  ValueSlice(const std::vector<bool> &constant_);
+
+  const Definition * getDefinition() const { return definition; }
+  const Instance * getInstance() const { return instance; }
   const IFace * getIFace() const { return iface; }
-  const SimInfo * getSimInfo() const { return siminfo; }
   const Value * getValue() const { return val; }
 
   int getEndIdx() const { return offset + width; }
   int getWidth() const { return width; }
   int getOffset() const { return offset; }
   bool isWhole() const { return is_whole; }
+  bool isConstant() const { return constant.has_value(); }
+  bool isDefinitionAttached() const { return !!definition; }
+  bool isInstanceAttached() const { return !!instance; }
 
   void extend(const ValueSlice &other);
 
@@ -68,7 +75,7 @@ private:
 
   bool has_many_slices = true;
 
-  const Value *direct_value = nullptr;
+  const ValueSlice *direct_value = nullptr;
 
   void compressSlices();
 public:
@@ -149,6 +156,7 @@ public:
 
   IFace & getIFace() { return interface; }
   const IFace & getIFace() const { return interface; }
+  const SimInfo & getSimInfo() const;
   const Definition & getDefinition() const { return *defn; }
   const std::string & getName() const { return name; }
 
@@ -172,7 +180,8 @@ public:
 
   Definition(const std::string &name,
              std::vector<Input> &&inputs,
-             std::vector<Value> &&outputs);
+             std::vector<Value> &&outputs,
+             const Primitive & primitive);
 
   Instance makeInstance(const std::string &name) const;
 

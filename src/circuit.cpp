@@ -11,6 +11,22 @@ namespace JITSim {
 
 using namespace std;
 
+ValueSlice::ValueSlice(const Definition *definition_, const Instance *instance_,
+                       const Value *val_, int offset_, int width_)
+  : definition(definition_), instance(instance_),
+    iface(definition ? &definition->getIFace() : &instance->getIFace()),
+    val(val_), offset(offset_), width(width_),
+    is_whole(offset == 0 && width == val->getWidth()),
+    constant()
+{}
+
+ValueSlice::ValueSlice(const std::vector<bool> &constant_)
+  : definition(nullptr), instance(nullptr), iface(nullptr),
+    val(nullptr), offset(0), width(constant_.size()),
+    is_whole(true),
+    constant(constant_)
+{}
+
 void ValueSlice::extend(const ValueSlice &other)
 {
   width += other.width;
@@ -48,7 +64,7 @@ void Select::compressSlices()
   if (slices.size() == 1) {
     has_many_slices = false;
     if (slices[0].isWhole()) {
-      direct_value = slices[0].getValue();
+      direct_value = &slices[0];
     }
   }
 }
@@ -103,7 +119,12 @@ Instance::Instance(const string &name_,
 {
 }
 
-vector<Instance> & fully_connect(Definition &defn, vector<Instance> &instances,
+const SimInfo & Instance::getSimInfo() const 
+{
+  return defn->getSimInfo();
+}
+
+static vector<Instance> & fully_connect(Definition &defn, vector<Instance> &instances,
                                  function<void (Definition&, vector<Instance> &instances)> make_connections)
 {
   make_connections(defn, instances);
@@ -118,16 +139,17 @@ Definition::Definition(const string &name_,
   : name(name_),
     interface("self", move(inputs), move(outputs), true),
     instances(move(insts)),
-    siminfo(fully_connect(*this, instances, make_connections))
+    siminfo(interface, fully_connect(*this, instances, make_connections))
 {}
 
 Definition::Definition(const string &name_,
                        vector<Input> &&inputs,
-                       vector<Value> &&outputs)
+                       vector<Value> &&outputs,
+                       const Primitive &primitive)
   : name(name_),
     interface("self", move(inputs), move(outputs), true),
     instances(),
-    siminfo(false) // FIXME
+    siminfo(primitive)
 {
 }
 

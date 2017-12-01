@@ -11,6 +11,8 @@
 #include <tuple>
 #include <string>
 
+#include "coreir_primitives.hpp"
+
 namespace JITSim {
 
 using namespace std;
@@ -71,7 +73,9 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
 {
   auto interface = GenInterface(core_mod);
 
-  definitions.emplace_back(core_mod->getName(), move(interface.first), move(interface.second));
+  Primitive prim = BuildCoreIRPrimitive(core_mod);
+
+  definitions.emplace_back(core_mod->getName(), move(interface.first), move(interface.second), prim);
   mod_map[core_mod] = &definitions.back();
 }
 
@@ -92,24 +96,21 @@ static ValueSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn
     is_arrslice = true;
   } 
 
-  const IFace* iface = nullptr;
-  const SimInfo* siminfo = nullptr;
+  const Definition *definition = nullptr;
+  const Instance *instance = nullptr;
   const Value* val = nullptr;
   if (parent_w->getKind() == CoreIR::Wireable::WK_Instance) {
     CoreIR::Instance *coreparentinst = static_cast<CoreIR::Instance *>(parent_w);
-    Instance *sourceinst = inst_map.find(coreparentinst)->second;
-    iface = &sourceinst->getIFace();
-    siminfo = &sourceinst->getDefinition().getSimInfo();
-    val = iface->getOutput(source->getSelStr());
+    instance = inst_map.find(coreparentinst)->second;
+    val = instance->getIFace().getOutput(source->getSelStr());
   } else if (parent_w->getKind() == CoreIR::Wireable::WK_Interface) {
-    iface = &defn.getIFace();
-    siminfo = &defn.getSimInfo();
-    val = iface->getOutput(source->getSelStr());
+    val = defn.getIFace().getOutput(source->getSelStr());
+    definition = &defn;
   } else {
     assert(false);
   }
-  assert(iface && siminfo && val);
-  return ValueSlice(iface, siminfo, val, parent_idx, is_arrslice ? 1 : val->getWidth());
+  assert(val);
+  return ValueSlice(definition, instance, val, parent_idx, is_arrslice ? 1 : val->getWidth());
 }
 
 static void SetupIFaceConnections(CoreIR::Wireable *core_w, IFace &iface, const Definition &defn,
