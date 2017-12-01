@@ -10,9 +10,9 @@ using namespace std;
 Primitive BuildReg(CoreIR::Module *mod)
 {
   return Primitive(true,
-    [&](auto &env, auto &args, auto *type)
+    [&](auto &env, auto &args)
     {
-      return nullptr;
+      return std::vector<llvm::Value *>();
     },
     [&](auto &env, auto &args)
     {
@@ -26,14 +26,13 @@ Primitive BuildReg(CoreIR::Module *mod)
 Primitive BuildAdd(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args, auto *type)
+    [&](auto &env, auto &args)
     {
       llvm::Value *first = args[0];
       llvm::Value *second = args[1];
       llvm::Value *sum = env.getIRBuilder().CreateAdd(first, second, "add");
-
-      return env.getIRBuilder().CreateInsertValue(llvm::UndefValue::get(type),
-                                                sum, { 0 }, "output");
+      
+      return std::vector<llvm::Value *> { sum };
     }
   );
 }
@@ -49,7 +48,8 @@ static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> Initializ
 
 Primitive BuildCoreIRPrimitive(CoreIR::Module *mod)
 {
-  static const unordered_map<string,function<Primitive (CoreIR::Module *mod)>> prim_map = InitializeMapping();
+  static const unordered_map<string,function<Primitive (CoreIR::Module *mod)>> prim_map =
+    InitializeMapping();
   string fullname = mod->getNamespace()->getName() + "." + mod->getName();
 
   if (prim_map.count(fullname) == 0) {

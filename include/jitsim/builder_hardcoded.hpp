@@ -20,8 +20,9 @@ class BuilderHardcoded {
 
     BuilderHardcoded();
     // Makes hard-coded module
-    std::unique_ptr<llvm::Module> makeExternModule();
     std::unique_ptr<llvm::Module> makeStructModule();
+    std::unique_ptr<llvm::Module> makeExternModule();
+    std::unique_ptr<llvm::Module> makeStoreLoadModule();
 };
 
 } // end namespace JITSim

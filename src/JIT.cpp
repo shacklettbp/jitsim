@@ -13,19 +13,20 @@ void initializeNativeTarget() {
 }
 
 JIT::JIT()
-: target_machine(EngineBuilder().selectTarget()), data_layout(target_machine->createDataLayout()),
-  object_layer([]() { return std::make_shared<SectionMemoryManager>(); }),
-  compile_layer(object_layer, SimpleCompiler(*target_machine)),
-  optimize_layer(compile_layer,
-                [this](std::shared_ptr<Module> module) {
-                  return optimizeModule(std::move(module));
-                }),
-  compile_callback_manager(
+  : target_machine(EngineBuilder().selectTarget()),
+                   data_layout(target_machine->createDataLayout()),
+    object_layer([]() { return std::make_shared<SectionMemoryManager>(); }),
+    compile_layer(object_layer, SimpleCompiler(*target_machine)),
+    optimize_layer(compile_layer,
+                  [this](std::shared_ptr<Module> module) {
+                    return optimizeModule(std::move(module));
+                  }),
+    compile_callback_manager(
       createLocalCompileCallbackManager(target_machine->getTargetTriple(), 0)),
-  cod_layer(optimize_layer,
-           [](Function &fn) { return std::set<Function*>({&fn}); },
-           *compile_callback_manager,
-           createLocalIndirectStubsManagerBuilder(target_machine->getTargetTriple()))
+    cod_layer(optimize_layer,
+              [](Function &fn) { return std::set<Function*>({&fn}); },
+              *compile_callback_manager,
+              createLocalIndirectStubsManagerBuilder(target_machine->getTargetTriple()))
 {
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }

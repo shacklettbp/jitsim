@@ -13,7 +13,7 @@ namespace JITSim {
 using namespace llvm;
 
 BuilderHardcoded::BuilderHardcoded()
-: ir_builder(context)
+  : ir_builder(context)
 { }
   
 std::unique_ptr<Module> BuilderHardcoded::makeStructModule() {
@@ -63,7 +63,7 @@ std::unique_ptr<Module> BuilderHardcoded::makeStructModule() {
 
 std::unique_ptr<Module> BuilderHardcoded::makeExternModule() {
 
-  std::unique_ptr<Module> module = make_unique<Module>("my cool jit", context);
+  std::unique_ptr<Module> module = make_unique<Module>("extern", context);
   
   // Arguments are hard-coded.
   Value *lhs = ConstantInt::get(context, APInt(32, 1, true));  
@@ -102,5 +102,13 @@ std::unique_ptr<Module> BuilderHardcoded::makeExternModule() {
 
   return module;
 }
+
+std::unique_ptr<Module> BuilderHardcoded::makeStoreLoadModule() {
+  std::unique_ptr<Module> module = make_unique<Module>("store/load", context);
+
+  return module;
+}
+
+
 
 } // end namespace JITSim
