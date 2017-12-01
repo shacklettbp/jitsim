@@ -1,4 +1,4 @@
-#include <jitsim/Builder.hpp>
+#include <jitsim/builder.hpp>
 
 #include <iostream>
 

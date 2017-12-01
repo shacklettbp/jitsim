@@ -3,7 +3,7 @@
 
 #include <jitsim/jitsim.hpp>
 #include <jitsim/JIT.hpp>
-#include <jitsim/Builder.hpp>
+#include <jitsim/builder.hpp>
 #include <jitsim/circuit.hpp>
 #include <jitsim/coreir.hpp>
 #include <coreir/ir/context.h>
