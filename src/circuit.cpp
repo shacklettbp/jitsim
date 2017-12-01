@@ -297,6 +297,9 @@ void Definition::print(const string &prefix) const
   }
   cout << prefix << "    self:\n";
   interface.print_connectivity(prefix + "      ");
+
+  cout << prefix << "  Simulation Information:\n";
+  siminfo.print(prefix + "    ");
 }
 
 void Circuit::print() const

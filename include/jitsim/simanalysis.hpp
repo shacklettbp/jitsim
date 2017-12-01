@@ -25,6 +25,8 @@ public:
 
   bool isStateful() const { return is_stateful; }
   bool isPrimitive() const { return is_primitive; }
+
+  void print(const std::string &prefix = "") const;
 };
 
 }

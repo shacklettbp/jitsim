@@ -71,15 +71,12 @@ void topo_sort_instances(unordered_set<const Instance *> &unsorted, vector<const
       if (instance_satisfied) {
         unsorted.erase(candidate);
         sorted.insert(candidate);
+        output.push_back(candidate);
         found = true;
         break;
       }
     }
     assert(found);
-  }
-
-  for (const Instance *candidate : sorted) {
-    output.push_back(candidate);
   }
 }
 
@@ -132,6 +129,24 @@ SimInfo::SimInfo(const Primitive &primitive)
     is_stateful(primitive.is_stateful),
     is_primitive(true)
 {
+}
+
+void SimInfo::print(const string &prefix) const
+{
+  cout << prefix << "Stateful instances:\n";
+  for (const Instance *inst : stateful_insts) {
+    cout << prefix << "  " << inst->getName() << endl;
+  }
+
+  cout << prefix << "State dependencies:\n";
+  for (const Instance *inst : state_deps) {
+    cout << prefix << "  " << inst->getName() << endl;
+  }
+
+  cout << prefix << "Output dependencies:\n";
+  for (const Instance *inst : output_deps) {
+    cout << prefix << "  " << inst->getName() << endl;
+  }
 }
 
 }
