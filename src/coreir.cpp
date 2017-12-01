@@ -91,7 +91,7 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
 
   Primitive prim = BuildCoreIRPrimitive(core_mod);
 
-  definitions.emplace_back(core_mod->getName(), move(interface.first), move(interface.second), prim);
+  definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(), move(interface.first), move(interface.second), prim);
   mod_map[core_mod] = &definitions.back();
 }
 
@@ -245,7 +245,7 @@ static void ProcessModules(CoreIR::Module *core_mod,
   vector<Value> defn_outputs;
   tie(defn_inputs, defn_outputs) = GenInterface(core_mod);
 
-  definitions.emplace_back(core_mod->getName(), move(defn_inputs), move(defn_outputs), move(defn_instances),
+  definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(), move(defn_inputs), move(defn_outputs), move(defn_instances),
                            [&](Definition &defn, vector<Instance> &instance) {
                              SetupModuleConnections(core_def, defn, defn_instmap);
                            });
