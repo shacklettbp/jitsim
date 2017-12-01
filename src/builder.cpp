@@ -12,9 +12,10 @@ namespace JITSim {
 
 using namespace llvm;
 
-Builder::Builder()
-: ir_builder(context)
-{ }
+FunctionEnvironment::FunctionEnvironment(Function *func_, ModuleEnvironment *parent_)
+  : func(func_), parent(parent_), context(parent->getContext()), ir_builder(*context)
+{
+}
 
 Value * FunctionEnvironment::lookupValue(const std::string &name)
 {
@@ -40,7 +41,8 @@ std::string ModuleEnvironment::getIRStr() const
   raw_string_ostream OS(str);
   OS << *module;
   OS.flush();
-  std::cout << str << std::endl;
+
+  return str;
 }
 
 ModuleEnvironment Builder::makeModule(const std::string &name)
