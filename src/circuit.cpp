@@ -153,12 +153,25 @@ static vector<Instance> & fully_connect(Definition &defn, vector<Instance> &inst
   return instances;
 }
 
+static string cleanName(const string &name)
+{
+  string clean = name;
+  for (char &c : clean) {
+    if (c == '.') {
+      c = '_';
+    }
+  }
+
+  return clean;
+}
+
 Definition::Definition(const string &name_,
                        vector<Input> &&inputs,
                        vector<Value> &&outputs,
                        vector<Instance> &&insts,
                        function<void (Definition&, vector<Instance> &instances)> make_connections)
   : name(name_),
+    safe_name(cleanName(name)),
     interface("self", move(inputs), move(outputs), true),
     instances(move(insts)),
     siminfo(interface, fully_connect(*this, instances, make_connections))

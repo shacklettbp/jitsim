@@ -165,6 +165,7 @@ public:
 class Definition {
 private:
   std::string name;
+  std::string safe_name;
   IFace interface;
 
   std::vector<Instance> instances;
@@ -187,6 +188,7 @@ public:
   const IFace & getIFace() const { return interface; }
   IFace & getIFace() { return interface; }
   const std::string & getName() const { return name; }
+  const std::string & getSafeName() const { return safe_name; }
   const SimInfo & getSimInfo() const { return siminfo; }
 
   void print(const std::string &prefix = "") const;
