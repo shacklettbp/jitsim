@@ -1,5 +1,5 @@
-#ifndef JITSIM_BUILDER_HPP
-#define JITSIM_BUILDER_HPP
+#ifndef JITSIM_BUILDER_HPP_INCLUDED
+#define JITSIM_BUILDER_HPP_INCLUDED
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -28,4 +28,4 @@ class Builder {
 
 } // end namespace JITSim
 
-#endif // JITSIM_JIT_HPP
+#endif // JITSIM_JIT_HPP_INCLUDED

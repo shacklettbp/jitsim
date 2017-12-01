@@ -102,5 +102,5 @@ std::unique_ptr<Module> Builder::makeExternModule() {
 
   return module;
 }
-  
+
 } // end namespace JITSim

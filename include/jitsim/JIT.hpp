@@ -1,5 +1,5 @@
-#ifndef JITSIM_JIT_HPP
-#define JITSIM_JIT_HPP
+#ifndef JITSIM_JIT_HPP_INCLUDED
+#define JITSIM_JIT_HPP_INCLUDED
 
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -65,4 +65,4 @@ class JIT {
 
 } // end namespace JITSim
 
-#endif // JITSIM_JIT_HPP
+#endif // JITSIM_JIT_HPP_INCLUDED
