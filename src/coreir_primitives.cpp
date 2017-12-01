@@ -32,9 +32,6 @@ Primitive BuildAdd(CoreIR::Module *mod)
     },
     [&](auto &env, auto &args)
     {
-    },
-    [&](auto &env)
-    {
     }
   );
 }

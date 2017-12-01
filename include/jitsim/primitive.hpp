@@ -35,7 +35,8 @@ public:
             std::function<void(FunctionEnvironment &, const std::vector<llvm::Value *> &)> make_update_state_)
     : is_stateful(is_stateful_),
       make_compute_output(make_compute_output_),
-      make_update_state(make_update_state_)
+      make_update_state(make_update_state_),
+      make_def()
   {
     has_definition = false;
   }
