@@ -107,11 +107,40 @@ public:
   int getWidth() const { return width; }
 };
 
+
+class ClkValue {
+private:
+  std::string name;
+public:
+  ClkValue(const std::string &name_)
+    : name(name_)
+  {}
+
+  const std::string & getName() const { return name; }
+};
+
+class ClkInput {
+private:
+  std::string name;
+  const ClkValue *source;
+public:
+  ClkInput(const std::string &name_, const ClkValue *source_)
+    : name(name_), source(source_)
+  {}
+
+  const std::string & getName() const { return name; }
+
+  bool isConnected() const { return source != nullptr; }
+  void connect(const ClkValue *source_) { source = source_; }
+};
+
 class IFace {
 private:
   std::string name;
   std::vector<Input> inputs;
   std::vector<Value> outputs;
+  std::vector<ClkInput> clk_inputs;
+  std::vector<ClkValue> clk_outputs;
   std::unordered_map<std::string, Input *> input_lookup;
   std::unordered_map<std::string, Value *> output_lookup;
   bool is_definition;
@@ -119,6 +148,8 @@ public:
   IFace(const std::string &name_,
         std::vector<Input> &&inputs_,
         std::vector<Value> &&outputs_,
+        std::vector<ClkInput> &&clk_inputs,
+        std::vector<ClkValue> &&clk_outputs,
         const bool is_definition_);
 
   IFace(const IFace &) = delete;
@@ -129,6 +160,9 @@ public:
   const std::vector<Input> & getInputs() const { return inputs; }
   std::vector<Value> & getOutputs() { return outputs; }
   std::vector<Input> & getInputs() { return inputs; }
+
+  const std::vector<ClkValue> & getClkOutputs() const { return clk_outputs; }
+  const std::vector<ClkInput> & getClkInputs() const { return clk_inputs; }
 
   const Value * getOutput(const std::string &name) const;
   const Input * getInput(const std::string &name) const;
@@ -149,8 +183,7 @@ private:
   const Definition *defn;
 public:
   Instance(const std::string &name_, 
-           std::vector<Input> &&inputs,
-           std::vector<Value> &&outputs,
+           IFace &&interface,
            const Definition *defn);
 
   IFace & getIFace() { return interface; }
@@ -173,14 +206,12 @@ private:
   SimInfo siminfo;
 public:
   Definition(const std::string &name,
-             std::vector<Input> &&inputs,
-             std::vector<Value> &&outputs,
+             IFace &&interface,
              std::vector<Instance> &&instances,
              std::function<void (Definition&, std::vector<Instance> &instances)> make_connections);
 
   Definition(const std::string &name,
-             std::vector<Input> &&inputs,
-             std::vector<Value> &&outputs,
+             IFace &&interface,
              const Primitive &primitive);
 
   Instance makeInstance(const std::string &name) const;

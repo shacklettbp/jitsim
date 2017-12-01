@@ -4,7 +4,9 @@ namespace JITSim {
 
 using namespace llvm;
 
-static std::unique_ptr<Module> ModuleForPrimitive(const Primitive &prim)
+static std::unique_ptr<Module> ModuleForPrimitive(Builder &builder,
+                                                  const Definition &definition, 
+                                                  const Primitive &prim)
 {
   if (!prim.has_definition) {
     return nullptr;
@@ -16,23 +18,23 @@ static std::unique_ptr<Module> ModuleForPrimitive(const Primitive &prim)
   return mod_env.returnModule();
 }
 
-static FunctionType * makeFuncType(const Definition &definition) 
+static FunctionType * makeFuncType(const Definition &definition, ModuleEnvironment &mod_env) 
 {
-  string in_name = definition.getSafeName() + "_inputs";
-  string out_name = definition.getSafeName() + "_outputs";
+  std::string in_name = definition.getSafeName() + "_inputs";
+  std::string out_name = definition.getSafeName() + "_outputs";
 
-
+  return nullptr;
 }
 
 std::unique_ptr<Module> ModuleForDefinition(Builder &builder, const Definition &definition)
 {
   const SimInfo &siminfo = definition.getSimInfo();
   if (siminfo.isPrimitive()) {
-    return ModuleForPrimitive(siminfo.getPrimitive());
+    return ModuleForPrimitive(builder, definition, siminfo.getPrimitive());
   }
 
   ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName());
-  FunctionType *func_type = makeFuncType(definition, mod_env.getContext());
+  FunctionType *func_type = makeFuncType(definition, mod_env);
   FunctionEnvironment func_env = mod_env.makeFunction(definition.getSafeName(), func_type);
 
   return mod_env.returnModule();
@@ -45,7 +47,7 @@ std::vector<std::unique_ptr<Module>> ModulesForCircuit(Builder &builder, const C
   for (const Definition &defn : circuit.getDefinitions()) {
     std::unique_ptr<Module> mod = ModuleForDefinition(builder, defn);
     if (mod != nullptr) {
-      modules.push_back(mod);
+      modules.emplace_back(move(mod));
     }
   }
 

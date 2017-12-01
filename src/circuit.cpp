@@ -94,10 +94,14 @@ void Select::compressSlices()
 IFace::IFace(const string &name_,
              vector<Input> &&inputs_,
              vector<Value> &&outputs_,
+             vector<ClkInput> &&clk_inputs_,
+             vector<ClkValue> &&clk_outputs_,
              bool is_defn)
   : name(name_),
     inputs(move(inputs_)),
     outputs(move(outputs_)), 
+    clk_inputs(move(clk_inputs_)),
+    clk_outputs(move(clk_outputs_)), 
     input_lookup(),
     output_lookup(),
     is_definition(is_defn)
@@ -132,11 +136,10 @@ Input * IFace::getInput(const std::string &name)
 }
 
 Instance::Instance(const string &name_,
-                   vector<Input> &&inputs,
-                   vector<Value> &&outputs,
+                   IFace &&iface_,
                    const Definition *defn_)
   : name(name_),
-    interface(name, move(inputs), move(outputs), false),
+    interface(move(iface_)),
     defn(defn_)
 {
 }
@@ -166,23 +169,21 @@ static string cleanName(const string &name)
 }
 
 Definition::Definition(const string &name_,
-                       vector<Input> &&inputs,
-                       vector<Value> &&outputs,
+                       IFace &&iface,
                        vector<Instance> &&insts,
                        function<void (Definition&, vector<Instance> &instances)> make_connections)
   : name(name_),
     safe_name(cleanName(name)),
-    interface("self", move(inputs), move(outputs), true),
+    interface(move(iface)),
     instances(move(insts)),
     siminfo(interface, fully_connect(*this, instances, make_connections))
 {}
 
 Definition::Definition(const string &name_,
-                       vector<Input> &&inputs,
-                       vector<Value> &&outputs,
+                       IFace &&iface,
                        const Primitive &primitive)
   : name(name_),
-    interface("self", move(inputs), move(outputs), true),
+    interface(move(iface)),
     instances(),
     siminfo(primitive)
 {
@@ -191,8 +192,11 @@ Definition::Definition(const string &name_,
 
 Instance Definition::makeInstance(const string &name) const
 {
-  vector<Value> outputs;
   vector<Input> inputs;
+  vector<Value> outputs;
+  vector<ClkInput> clk_inputs;
+  vector<ClkValue> clk_outputs;
+
   for (const Input &input : interface.getInputs()) {
     outputs.emplace_back(input.getName(), input.getWidth());
   }
@@ -201,7 +205,15 @@ Instance Definition::makeInstance(const string &name) const
     inputs.emplace_back(val.getName(), val.getWidth());
   }
 
-  return Instance(name, move(inputs), move(outputs), this);
+  for (const ClkInput &input : interface.getClkInputs()) {
+    clk_outputs.emplace_back(input.getName());
+  }
+
+  for (const ClkValue &val : interface.getClkOutputs()) {
+    clk_inputs.emplace_back(val.getName(), nullptr);
+  }
+
+  return Instance(name, IFace(name, move(inputs), move(outputs), move(clk_inputs), move(clk_outputs), false), this);
 }
 
 string ValueSlice::repr() const

@@ -24,11 +24,23 @@ static bool isConstantModule(CoreIR::Module *mod)
          (mod->getNamespace()->getName() == "coreir" && mod->getName() == "const");
 }
 
-static pair<vector<Input>, vector<Value>>
-GenInterface(CoreIR::Module *core_mod)
+static bool isClock(CoreIR::Type *type)
+{
+  if (type->getKind() != CoreIR::Type::TK_Named) {
+    return false;
+  }
+  CoreIR::NamedType *named = static_cast<CoreIR::NamedType *>(type);
+
+  return named->toString() == "coreir.clkIn";
+}
+
+static IFace GenInterface(CoreIR::Module *core_mod)
 {
   vector<Input> inputs;
   vector<Value> outputs;
+
+  vector<ClkInput> clk_inputs;
+  vector<ClkValue> clk_outputs;
 
   auto record = core_mod->getType()->getRecord();
 
@@ -38,13 +50,22 @@ GenInterface(CoreIR::Module *core_mod)
     int width = type->getSize();
 
     if (type->isInput()) {
-      outputs.emplace_back(name, width);
+      if (isClock(type)) {
+        clk_outputs.emplace_back(name);
+      } else {
+        outputs.emplace_back(name, width);
+      }
     } else {
-      inputs.emplace_back(name, width);
+      if (isClock(type)) {
+        clk_inputs.emplace_back(name, nullptr);
+      }
+      else {
+        inputs.emplace_back(name, width);
+      }
     }
   }
 
-  return make_pair(move(inputs), move(outputs));
+  return IFace("self", move(inputs), move(outputs), move(clk_inputs), move(clk_outputs), true);
 }
 
 static pair<vector<Instance>, unordered_map<CoreIR::Instance *, Instance *>>
@@ -82,8 +103,6 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
                              unordered_map<CoreIR::Module *, const Definition *> &mod_map,
                              deque<Definition> &definitions)
 {
-  auto interface = GenInterface(core_mod);
-
   if (isConstantModule(core_mod)) {
     /* Don't process consts as normal modules */
     return;
@@ -91,7 +110,12 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
 
   Primitive prim = BuildCoreIRPrimitive(core_mod);
 
-  definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(), move(interface.first), move(interface.second), prim);
+  vector<Input> inputs;
+  vector<Value> outputs;
+
+  auto interface = GenInterface(core_mod);
+
+  definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(), move(interface), prim);
   mod_map[core_mod] = &definitions.back();
 }
 
@@ -241,11 +265,11 @@ static void ProcessModules(CoreIR::Module *core_mod,
   vector<Instance> defn_instances;
   unordered_map<CoreIR::Instance *, Instance *> defn_instmap;
   tie(defn_instances, defn_instmap) = GenInstances(core_def, mod_map);
-  vector<Input> defn_inputs;
-  vector<Value> defn_outputs;
-  tie(defn_inputs, defn_outputs) = GenInterface(core_mod);
 
-  definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(), move(defn_inputs), move(defn_outputs), move(defn_instances),
+  auto interface = GenInterface(core_mod);
+
+  definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(),
+                           move(interface), move(defn_instances),
                            [&](Definition &defn, vector<Instance> &instance) {
                              SetupModuleConnections(core_def, defn, defn_instmap);
                            });
