@@ -34,33 +34,33 @@ void initializeNativeTarget();
 
 class JIT {
   private:
-    std::unique_ptr<llvm::TargetMachine> TM;
-    const llvm::DataLayout DL;
-    llvm::orc::RTDyldObjectLinkingLayer ObjectLayer;
-    llvm::orc::IRCompileLayer<decltype(ObjectLayer), llvm::orc::SimpleCompiler> CompileLayer;
+    std::unique_ptr<llvm::TargetMachine> target_machine;
+    const llvm::DataLayout data_layout;
+    llvm::orc::RTDyldObjectLinkingLayer object_layer;
+    llvm::orc::IRCompileLayer<decltype(object_layer), llvm::orc::SimpleCompiler> compile_layer;
     
     using OptimizeFunction =
         std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
-    llvm::orc::IRTransformLayer<decltype(CompileLayer), OptimizeFunction> OptimizeLayer;
-    std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> M);
+    llvm::orc::IRTransformLayer<decltype(compile_layer), OptimizeFunction> optimize_layer;
+    std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> module);
 
-    std::unique_ptr<llvm::orc::JITCompileCallbackManager> CompileCallbackManager;
-    llvm::orc::CompileOnDemandLayer<decltype(OptimizeLayer)> CODLayer;
+    std::unique_ptr<llvm::orc::JITCompileCallbackManager> compile_callback_manager;
+    llvm::orc::CompileOnDemandLayer<decltype(optimize_layer)> cod_layer;
 
   public:
-    using ModuleHandle = decltype(CODLayer)::ModuleHandleT;
+    using ModuleHandle = decltype(cod_layer)::ModuleHandleT;
 
     JIT();
 
     llvm::TargetMachine &getTargetMachine();
 
-    ModuleHandle addModule(std::unique_ptr<llvm::Module> M);
+    ModuleHandle addModule(std::unique_ptr<llvm::Module> module);
 
-    llvm::JITSymbol findSymbol(const std::string Name);
+    llvm::JITSymbol findSymbol(const std::string name);
 
-    llvm::JITTargetAddress getSymbolAddress(const std::string Name);
+    llvm::JITTargetAddress getSymbolAddress(const std::string name);
 
-    void removeModule(ModuleHandle H);
+    void removeModule(ModuleHandle handle);
 };
 
 } // end namespace JITSim

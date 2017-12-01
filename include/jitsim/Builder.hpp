@@ -14,14 +14,15 @@ namespace JITSim {
 
 class Builder {
   private:
-    llvm::LLVMContext Context;
-    llvm::IRBuilder<> TheBuilder;
+    llvm::LLVMContext context;
+    llvm::IRBuilder<> ir_builder;
     //std::map<std::string, llvm::Value *> NamedValues; // Not yet used.
   public:
 
     Builder();
     // Makes hard-coded module
-    std::unique_ptr<llvm::Module> makeModule();
+    std::unique_ptr<llvm::Module> makeExternModule();
+    std::unique_ptr<llvm::Module> makeStructModule();
     int adder(int lhs, int rhs);
 };
 

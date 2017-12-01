@@ -13,47 +13,92 @@ namespace JITSim {
 using namespace llvm;
 
 Builder::Builder()
-: TheBuilder(Context)
+: ir_builder(context)
 { }
   
-std::unique_ptr<Module> Builder::makeModule() {
+std::unique_ptr<Module> Builder::makeStructModule() {
+  std::unique_ptr<Module> module = make_unique<Module>("structs", context);
 
-  std::unique_ptr<Module> module = make_unique<Module>("my cool jit", Context);
+  // Create a struct type: (Int, Int)
+  std::vector<Type *> elem_types(2, Type::getInt16Ty(context));
+  StructType* Int16Pair = StructType::create(context, elem_types, "Int16Pair");
+
+  // Create a function type: Int16Pair(Int16Pair).
+  std::vector<Type *> arg_types(1, Int16Pair);
+  FunctionType *function_type = FunctionType::get(Int16Pair, arg_types, false);
   
-  // Arguments are hard-coded.
-  Value *LHS = ConstantInt::get(Context, APInt(32, 1, true));  
-  Value *RHS = ConstantInt::get(Context, APInt(32, 2, true));  
+  // Create declaration of function.
+  Function *fn = Function::Create(function_type, Function::ExternalLinkage, "square", module.get());
 
-  // Create function type: Int(Int, Int).
-  std::vector<Type *> Ints(2, Type::getInt32Ty(Context));
-  FunctionType *FT = FunctionType::get(Type::getInt32Ty(Context), Ints, false);
+  // Create a Basic Block and set the insert point.
+  BasicBlock *basic_block = BasicBlock::Create(context, "entry", fn);
+  ir_builder.SetInsertPoint(basic_block);
 
-  // Create declaration of external function and wrapper function
-  Function *ExternalFn = Function::Create(FT, Function::ExternalLinkage, "adder", module.get());
-  Function *Fn = Function::Create(FT, Function::ExternalLinkage, "wrapadd", module.get());
+  // Get the argument(s).
+  Value* input_pair = fn->args().begin();
+  input_pair->setName("input_pair");
   
-  // Create a BasicBlock and set the insert point.
-  BasicBlock *BB = BasicBlock::Create(Context, "entry", Fn);
-  TheBuilder.SetInsertPoint(BB);
+  // Access the fields of the struct.
+  Value *first_elem = ir_builder.CreateExtractValue(input_pair, { 0 }, "first");
+  Value *second_elem = ir_builder.CreateExtractValue(input_pair, { 1 }, "second");
 
-  // Create argument list.
-  std::vector<Value *> ArgsV;
-  ArgsV.push_back(LHS);
-  ArgsV.push_back(RHS);
+  // Square the struct fields.
+  Value *first_elem_sqrd = ir_builder.CreateMul(first_elem, first_elem, "multmp1");
+  Value *second_elem_sqrd = ir_builder.CreateMul(second_elem, second_elem, "multmp2"); 
 
-  // Create the function call and capture the return value.
-  Value *RetVal = TheBuilder.CreateCall(ExternalFn, ArgsV, "calltmp");
-  TheBuilder.CreateRet(RetVal);
+  // Return a new struct with the new fields.
+  Value *output_pair = ir_builder.CreateInsertValue(UndefValue::get(Int16Pair), first_elem_sqrd, { 0 }, "output_pair");
+  output_pair = ir_builder.CreateInsertValue(output_pair, second_elem_sqrd, { 1 }, "output_pair");
+  ir_builder.CreateRet(output_pair);
 
   // Debugging: inspect contents of module.
-  std::string Str;
-  raw_string_ostream OS(Str);
+  std::string str;
+  raw_string_ostream OS(str);
   OS << *module;
   OS.flush();
-  std::cout << Str << std::endl;
+  std::cout << str << std::endl;
+
+  return module;
+}
+
+std::unique_ptr<Module> Builder::makeExternModule() {
+
+  std::unique_ptr<Module> module = make_unique<Module>("my cool jit", context);
+  
+  // Arguments are hard-coded.
+  Value *lhs = ConstantInt::get(context, APInt(32, 1, true));  
+  Value *rhs = ConstantInt::get(context, APInt(32, 2, true));  
+
+  // Create function type: Int(Int, Int).
+  std::vector<Type *> int_vec(2, Type::getInt32Ty(context));
+  FunctionType *function_type = FunctionType::get(Type::getInt32Ty(context), int_vec, false);
+
+  // Create declaration of external function and wrapper function.
+  Function *external_fn = Function::Create(function_type, Function::ExternalLinkage, "adder", module.get());
+  Function *fn = Function::Create(function_type, Function::ExternalLinkage, "wrapadd", module.get());
+  
+  // Create a BasicBlock and set the insert point.
+  BasicBlock *basic_block = BasicBlock::Create(context, "entry", fn);
+  ir_builder.SetInsertPoint(basic_block);
+
+  // Create argument list.
+  std::vector<Value *> args_v;
+  args_v.push_back(lhs);
+  args_v.push_back(rhs);
+
+  // Create the function call and capture the return value.
+  Value *return_value = ir_builder.CreateCall(external_fn, args_v, "calltmp");
+  ir_builder.CreateRet(return_value);
+
+  // Debugging: inspect contents of module.
+  std::string str;
+  raw_string_ostream OS(str);
+  OS << *module;
+  OS.flush();
+  std::cout << str << std::endl;
 
   // Verify generate code is consistent.
-  verifyFunction(*Fn);
+  verifyFunction(*fn);
 
   return module;
 }

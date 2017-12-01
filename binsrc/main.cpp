@@ -47,10 +47,14 @@ int main(int argc, char *argv[])
   JITSim::JIT jit;
   JITSim::Builder builder;
 
-  JITSim::JIT::ModuleHandle handle = jit.addModule(builder.makeModule());
+  JITSim::JIT::ModuleHandle handle = jit.addModule(builder.makeExternModule());
   std::function<int()> Adder = (int(*)())jit.getSymbolAddress("wrapadd");
-  int Result = Adder(); // this conversion is wrong
+  int Result = Adder();
   cout << Result << endl;
+  
+  JITSim::JIT::ModuleHandle new_handle = jit.addModule(builder.makeStructModule());
+
   jit.removeModule(handle);
+  jit.removeModule(new_handle);
   return 0;
 }
