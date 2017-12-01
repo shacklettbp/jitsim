@@ -3,7 +3,7 @@
 #include <iostream>
 
 extern "C" {
-int adder(int lhs, int rhs) {
+int hardcoded_adder(int lhs, int rhs) {
   return lhs + rhs;
 }
 } // end extern
@@ -12,11 +12,11 @@ namespace JITSim {
 
 using namespace llvm;
 
-Builder::Builder()
+BuilderHardcoded::BuilderHardcoded()
 : ir_builder(context)
 { }
   
-std::unique_ptr<Module> Builder::makeStructModule() {
+std::unique_ptr<Module> BuilderHardcoded::makeStructModule() {
   std::unique_ptr<Module> module = make_unique<Module>("structs", context);
 
   // Create a struct type: (Int, Int)
@@ -61,7 +61,7 @@ std::unique_ptr<Module> Builder::makeStructModule() {
   return module;
 }
 
-std::unique_ptr<Module> Builder::makeExternModule() {
+std::unique_ptr<Module> BuilderHardcoded::makeExternModule() {
 
   std::unique_ptr<Module> module = make_unique<Module>("my cool jit", context);
   
@@ -74,7 +74,7 @@ std::unique_ptr<Module> Builder::makeExternModule() {
   FunctionType *function_type = FunctionType::get(Type::getInt32Ty(context), int_vec, false);
 
   // Create declaration of external function and wrapper function.
-  Function *external_fn = Function::Create(function_type, Function::ExternalLinkage, "adder", module.get());
+  Function *external_fn = Function::Create(function_type, Function::ExternalLinkage, "hardcoded_adder", module.get());
   Function *fn = Function::Create(function_type, Function::ExternalLinkage, "wrapadd", module.get());
   
   // Create a BasicBlock and set the insert point.

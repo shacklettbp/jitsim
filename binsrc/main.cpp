@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
   JITSim::initializeNativeTarget();
   JITSim::JIT jit;
-  JITSim::Builder builder;
+  JITSim::BuilderHardcoded builder;
 
   JITSim::JIT::ModuleHandle handle = jit.addModule(builder.makeExternModule());
   std::function<int()> Adder = (int(*)())jit.getSymbolAddress("wrapadd");

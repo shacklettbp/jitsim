@@ -12,18 +12,17 @@
 
 namespace JITSim {
 
-class Builder {
+class BuilderHardcoded {
   private:
     llvm::LLVMContext context;
     llvm::IRBuilder<> ir_builder;
     //std::map<std::string, llvm::Value *> NamedValues; // Not yet used.
   public:
 
-    Builder();
+    BuilderHardcoded();
     // Makes hard-coded module
     std::unique_ptr<llvm::Module> makeExternModule();
     std::unique_ptr<llvm::Module> makeStructModule();
-    int adder(int lhs, int rhs);
 };
 
 } // end namespace JITSim
