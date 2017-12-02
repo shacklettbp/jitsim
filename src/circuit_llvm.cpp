@@ -197,12 +197,29 @@ static void makeComputeOutputsDefn(const Definition &definition, ModuleEnvironme
   for (const Instance *inst : defn_info.getOutputDeps()) {
     makeInstanceComputeOutputs(inst, compute_outputs);
   }
+
+  const std::vector<JITSim::Input> & inputs = definition.getIFace().getInputs();
+  llvm::Value *ret_val = UndefValue::get(co_type->getReturnType());
+
+  for (unsigned i = 0; i < inputs.size(); i++ ) {
+    llvm::Value *ret_part = makeValueReference(inputs[i].getSelect(), compute_outputs);
+    ret_val = compute_outputs.getIRBuilder().CreateInsertValue(ret_val, ret_part, { i });
+  }
+
+  compute_outputs.getIRBuilder().CreateRet(ret_val);
+
+  compute_outputs.verify();
 }
 
 static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment &mod_env)
 {
     FunctionType *us_type = makeUpdateStateType(definition, mod_env);
     FunctionEnvironment update_state = mod_env.makeFunction(getUpdateStateName(definition), us_type);
+    update_state.addBasicBlock("entry");
+
+    update_state.getIRBuilder().CreateRetVoid();
+
+    update_state.verify();
 }
 
 ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &definition)
