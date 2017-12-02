@@ -4,6 +4,7 @@
 #include <jitsim/primitive.hpp>
 
 #include <vector>
+#include <unordered_map>
 #include <optional>
 
 namespace JITSim {
@@ -17,6 +18,7 @@ private:
   std::vector<const Instance *> state_deps;
   std::vector<const Instance *> output_deps;
   std::vector<const Instance *> stateful_insts;
+  std::unordered_map<const Instance *, unsigned> offset_map;
   std::optional<Primitive> primitive;
 
   bool is_stateful;
@@ -34,6 +36,9 @@ public:
   const std::vector<const Instance *> & getStateDeps() const { return state_deps; }
   const std::vector<const Instance *> & getOutputDeps() const { return output_deps; }
   const std::vector<const Instance *> & getStatefulInstances() const { return stateful_insts; }
+
+  unsigned getOffset(const Instance *inst) const { return offset_map.find(inst)->second; }
+
   unsigned int getNumStateBytes() const { return num_state_bytes; }
   const Primitive& getPrimitive() const { return *primitive; }
 

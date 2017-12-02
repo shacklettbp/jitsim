@@ -150,7 +150,12 @@ static llvm::Value * makeValueReference(const Select &select, FunctionEnvironmen
   }
 }
 
-static void makeInstanceComputeOutput(const Instance *inst, FunctionEnvironment &env, llvm::Value *state_ptr)
+static llvm::Value * incrementStatePtr(llvm::Value *cur_ptr, int incr, FunctionEnvironment &env)
+{
+  return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), APInt(64, incr, false)));
+}
+
+static void makeInstanceComputeOutput(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, llvm::Value *base_state)
 {
   const SimInfo &info = inst->getDefinition().getSimInfo();
   const IFace &iface = inst->getIFace();
@@ -166,6 +171,7 @@ static void makeInstanceComputeOutput(const Instance *inst, FunctionEnvironment 
   }
 
   if (info.isStateful()) {
+    llvm::Value *state_ptr = incrementStatePtr(base_state, defn_info.getOffset(inst), env);
     argument_values.push_back(state_ptr);
   }
 
@@ -192,7 +198,7 @@ static void makeInstanceComputeOutput(const Instance *inst, FunctionEnvironment 
   }
 }
 
-static void makeInstanceUpdateState(const Instance *inst, FunctionEnvironment &env, llvm::Value *state_ptr)
+static void makeInstanceUpdateState(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, llvm::Value *base_state)
 {
   const SimInfo &info = inst->getDefinition().getSimInfo();
   const IFace &iface = inst->getIFace();
@@ -203,6 +209,7 @@ static void makeInstanceUpdateState(const Instance *inst, FunctionEnvironment &e
     argument_values.push_back(makeValueReference(input.getSelect(), env));
   }
 
+  llvm::Value *state_ptr = incrementStatePtr(base_state, defn_info.getOffset(inst), env);
   argument_values.push_back(state_ptr);
 
   std::vector<llvm::Value *> ret_values;
@@ -218,19 +225,6 @@ static void makeInstanceUpdateState(const Instance *inst, FunctionEnvironment &e
 
     env.getIRBuilder().CreateCall(inst_func, argument_values);
   }
-}
-
-static llvm::Value * incrementStatePtr(const Instance *inst, llvm::Value *cur_ptr, FunctionEnvironment &env)
-{
-  const SimInfo &info = inst->getDefinition().getSimInfo();
-
-  if (!info.isStateful()) {
-    return cur_ptr;
-  }
-
-  int incr = info.getNumStateBytes();
-
-  return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), APInt(64, incr, false)));
 }
 
 static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironment &mod_env)
@@ -260,13 +254,8 @@ static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironmen
   }
 
   const std::vector<const Instance *> &output_deps = defn_info.getOutputDeps();
-  for (unsigned i = 0; i < output_deps.size(); i++) {
-    const Instance *inst = output_deps[i];
-    makeInstanceComputeOutput(inst, compute_outputs, state_ptr);
-
-    if (i < output_deps.size() - 1) {
-      state_ptr = incrementStatePtr(inst, state_ptr, compute_outputs);
-    }
+  for (const Instance *inst : output_deps) {
+    makeInstanceComputeOutput(inst, defn_info, compute_outputs, state_ptr);
   }
 
   const std::vector<JITSim::Input> & inputs = definition.getIFace().getInputs();
@@ -301,29 +290,14 @@ static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment 
   }
 
   llvm::Value *state_ptr = update_state.getFunction()->arg_end() - 1;
-  llvm::Value *orig_state_ptr = state_ptr;
   state_ptr->setName("state_ptr");
 
-  const std::vector<const Instance *> &state_deps = defn_info.getStateDeps();
-  for (unsigned i = 0; i < state_deps.size(); i++) {
-    const Instance *inst = state_deps[i];
-    makeInstanceComputeOutput(inst, update_state, state_ptr);
-
-    if (i < state_deps.size() - 1) {
-      state_ptr = incrementStatePtr(inst, state_ptr, update_state);
-    }
+  for (const Instance *inst : defn_info.getStateDeps()) {
+    makeInstanceComputeOutput(inst, defn_info, update_state, state_ptr);
   }
 
-  state_ptr = orig_state_ptr;
-
-  const std::vector<const Instance *> &stateful_instances = defn_info.getStatefulInstances();
-  for (unsigned i = 0; i < stateful_instances.size(); i++) {
-    const Instance *inst = stateful_instances[i];
-    makeInstanceUpdateState(inst, update_state, state_ptr);
-
-    if (i < state_deps.size() - 1) {
-      state_ptr = incrementStatePtr(inst, state_ptr, update_state);
-    }
+  for (const Instance *inst : defn_info.getStatefulInstances()) {
+    makeInstanceUpdateState(inst, defn_info, update_state, state_ptr);
   }
 
   update_state.getIRBuilder().CreateRetVoid();

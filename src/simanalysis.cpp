@@ -112,25 +112,24 @@ bool order_instances(const IFace &interface,
   return stateful;
 }
 
-static unsigned int calculateNumStateBytes(const vector<const Instance *> &stateful_instances)
-{
-  unsigned int total_state_bytes = 0;
-  for (const Instance *inst : stateful_instances) {
-    total_state_bytes += inst->getSimInfo().getNumStateBytes();
-  }
-  return total_state_bytes;
-}
-
 SimInfo::SimInfo(const IFace &interface, const vector<Instance> &instances)
   : state_deps(),
     output_deps(),
     stateful_insts(),
+    offset_map(),
     primitive(),
     is_stateful(false),
     num_state_bytes(0)
 {
   is_stateful = order_instances(interface, instances, state_deps, output_deps, stateful_insts);
-  num_state_bytes = calculateNumStateBytes(stateful_insts);
+
+  unsigned offset = 0;
+  for (const Instance *inst : stateful_insts) {
+    offset_map[inst] = offset;
+    offset += inst->getDefinition().getSimInfo().getNumStateBytes();
+  }
+
+  num_state_bytes = offset;
 }
 
 SimInfo::SimInfo(const Primitive &primitive_)
