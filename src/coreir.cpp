@@ -36,11 +36,11 @@ static bool isClock(CoreIR::Type *type)
 
 static IFace GenInterface(CoreIR::Module *core_mod)
 {
-  vector<Input> inputs;
-  vector<Value> outputs;
+  vector<Sink> sinks;
+  vector<Source> sources;
 
-  vector<ClkInput> clk_inputs;
-  vector<ClkValue> clk_outputs;
+  vector<ClkSink> clk_sinks;
+  vector<ClkSource> clk_sources;
 
   auto record = core_mod->getType()->getRecord();
 
@@ -49,23 +49,23 @@ static IFace GenInterface(CoreIR::Module *core_mod)
     auto type = rpair.second;
     int width = type->getSize();
 
-    if (type->isInput()) {
+    if (type->isSink()) {
       if (isClock(type)) {
-        clk_outputs.emplace_back(name);
+        clk_sources.emplace_back(name);
       } else {
-        outputs.emplace_back(name, width);
+        sources.emplace_back(name, width);
       }
     } else {
       if (isClock(type)) {
-        clk_inputs.emplace_back(name, nullptr);
+        clk_sinks.emplace_back(name, nullptr);
       }
       else {
-        inputs.emplace_back(name, width);
+        sinks.emplace_back(name, width);
       }
     }
   }
 
-  return IFace("self", move(inputs), move(outputs), move(clk_inputs), move(clk_outputs), true);
+  return IFace("self", move(sinks), move(sources), move(clk_sinks), move(clk_sources), true);
 }
 
 static pair<vector<Instance>, unordered_map<CoreIR::Instance *, Instance *>>
@@ -110,8 +110,8 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
 
   Primitive prim = BuildCoreIRPrimitive(core_mod);
 
-  vector<Input> inputs;
-  vector<Value> outputs;
+  vector<Sink> sinks;
+  vector<Source> sources;
 
   auto interface = GenInterface(core_mod);
 
@@ -130,7 +130,7 @@ static bool isConstantWireable(CoreIR::Wireable *w)
   return isConstantModule(mod);
 }
 
-static ValueSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn,
+static SourceSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn,
                               const unordered_map<CoreIR::Instance *, Instance *> &inst_map)
 {
   assert(source_w->getKind() == CoreIR::Wireable::WK_Select);
@@ -152,7 +152,7 @@ static ValueSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn
     bool found = false;
     vector<bool> new_const;
     for (auto& arg : const_inst->getModArgs()) {
-      if (arg.first == "value") {
+      if (arg.first == "source") {
         found = true;
         CoreIR::Value* val = arg.second;
         if (const_inst->getModuleRef()->getNamespace()->getName() == "coreir") {
@@ -170,34 +170,34 @@ static ValueSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &defn
     assert(found);
 
     if (is_arrslice) {
-      return ValueSlice(vector<bool>(new_const[parent_idx]));
+      return SourceSlice(vector<bool>(new_const[parent_idx]));
     } else {
-      return ValueSlice(new_const);
+      return SourceSlice(new_const);
     }
   } else {
     const Definition *definition = nullptr;
     const Instance *instance = nullptr;
-    const Value* val = nullptr;
+    const Source* src = nullptr;
     if (parent_w->getKind() == CoreIR::Wireable::WK_Instance) {
       CoreIR::Instance *coreparentinst = static_cast<CoreIR::Instance *>(parent_w);
       instance = inst_map.find(coreparentinst)->second;
-      val = instance->getIFace().getOutput(source->getSelStr());
+      src = instance->getIFace().getSource(source->getSelStr());
     } else if (parent_w->getKind() == CoreIR::Wireable::WK_Interface) {
-      val = defn.getIFace().getOutput(source->getSelStr());
+      src = defn.getIFace().getSource(source->getSelStr());
       definition = &defn;
     } else {
       assert(false);
     }
-    assert(val);
-    return ValueSlice(definition, instance, val, parent_idx, is_arrslice ? 1 : val->getWidth());
+    assert(src);
+    return SourceSlice(definition, instance, src, parent_idx, is_arrslice ? 1 : src->getWidth());
   }
 }
 
 static void SetupIFaceConnections(CoreIR::Wireable *core_w, IFace &iface, const Definition &defn,
                                   const unordered_map<CoreIR::Instance *, Instance *> &inst_map)
 {
-  for (Input &new_input : iface.getInputs()) {
-    const string &iname = new_input.getName();
+  for (Sink &new_sink : iface.getSinks()) {
+    const string &iname = new_sink.getName();
 
     CoreIR::Select *in_sel = core_w->sel(iname);
     auto connected = in_sel->getConnectedWireables();
@@ -206,18 +206,18 @@ static void SetupIFaceConnections(CoreIR::Wireable *core_w, IFace &iface, const 
       if (in_sel->getType()->getKind() != CoreIR::Type::TK_Array) {
         assert(false);
       }
-      vector<ValueSlice> slices;
-      for (int i = 0; i < new_input.getWidth(); i++) {
+      vector<SourceSlice> slices;
+      for (int i = 0; i < new_sink.getWidth(); i++) {
         CoreIR::Select *arr_sel = in_sel->sel(to_string(i));
         connected = arr_sel->getConnectedWireables();
         assert(connected.size() == 1);
         slices.emplace_back(CreateSlice(*connected.begin(), defn, inst_map));
       }
-      new_input.connect(Select(move(slices)));
+      new_sink.connect(Select(move(slices)));
     } else {
       assert(connected.size() == 1);
-      ValueSlice slice = CreateSlice(*connected.begin(), defn, inst_map);
-      new_input.connect(Select(move(slice)));
+      SourceSlice slice = CreateSlice(*connected.begin(), defn, inst_map);
+      new_sink.connect(Select(move(slice)));
     }
   }
 }
