@@ -140,7 +140,7 @@ std::unique_ptr<Module> BuilderHardcoded::makeStoreLoadModule() {
   // Create function type: i8(i8*).
   std::vector<Type *> load_input(1, Type::getInt8PtrTy(context));
   FunctionType *load_fn_type = FunctionType::get(Type::getInt8Ty(context), load_input, false);
-  // Create declaration
+  // Create declaration of loadConstant().
   Function *load_fn = Function::Create(load_fn_type, Function::ExternalLinkage, "loadConstant", module.get());
   (void)load_fn;
 
