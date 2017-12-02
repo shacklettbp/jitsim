@@ -117,9 +117,11 @@ SimInfo::SimInfo(const IFace &interface, const vector<Instance> &instances)
     output_deps(),
     stateful_insts(),
     primitive(),
-    is_stateful(false)
+    is_stateful(false),
+    num_state_bytes(0)
 {
   is_stateful = order_instances(interface, instances, state_deps, output_deps, stateful_insts);
+  num_state_bytes = calculateNumStateBytes();
 }
 
 SimInfo::SimInfo(const Primitive &primitive_)
@@ -127,8 +129,23 @@ SimInfo::SimInfo(const Primitive &primitive_)
     output_deps(),
     stateful_insts(),
     primitive(primitive_),
-    is_stateful(primitive->is_stateful)
+    is_stateful(primitive->is_stateful),
+    num_state_bytes(calculateNumStateBytes())
 {
+}
+
+unsigned int SimInfo::calculateNumStateBytes() const
+{
+  std::vector<const Instance *> stateful_instances = getStatefulInstances();
+  unsigned int total_state_bytes;
+  for (const Instance *inst : stateful_instances) {
+    if (isPrimitive()) {
+      return getPrimitive().num_state_bytes;
+    } else {
+      total_state_bytes += inst->getSimInfo().calculateNumStateBytes();
+    }
+  }
+  return total_state_bytes;
 }
 
 void SimInfo::print(const string &prefix) const

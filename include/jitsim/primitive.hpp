@@ -69,7 +69,6 @@ public:
       make_def()
   {
   }
-
 };
 
 }

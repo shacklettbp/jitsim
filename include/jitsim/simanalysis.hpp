@@ -20,6 +20,7 @@ private:
   std::optional<Primitive> primitive;
 
   bool is_stateful;
+  unsigned int num_state_bytes;
 public:
   SimInfo(const IFace &interface, const std::vector<Instance> &instances);
   SimInfo(const Primitive &primitive);
@@ -30,8 +31,10 @@ public:
   const std::vector<const Instance *> & getStateDeps() const { return state_deps; }
   const std::vector<const Instance *> & getOutputDeps() const { return output_deps; }
   const std::vector<const Instance *> & getStatefulInstances() const { return stateful_insts; }
+  unsigned int getNumStateBytes() const { return num_state_bytes; }
   const Primitive& getPrimitive() const { return *primitive; }
 
+  unsigned int calculateNumStateBytes() const;
 
   void print(const std::string &prefix = "") const;
 };
