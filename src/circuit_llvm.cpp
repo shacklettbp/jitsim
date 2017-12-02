@@ -136,9 +136,6 @@ static llvm::Value * makeValueReference(const Select &select, FunctionEnvironmen
         llvm::Value *src = env.getIRBuilder().CreateZExt(sliced_val, Type::getIntNTy(env.getContext(), total_width), "src");
         llvm::Value *dest = env.getIRBuilder().CreateZExt(acc, Type::getIntNTy(env.getContext(), total_width), "dst");
 
-        //dest = env.getIRBuilder().CreateShl(dest, slice.getWidth());
-
-        /* FIXME is this actually correct */
         src = env.getIRBuilder().CreateShl(src, total_width - slice.getWidth(), "src_shift");
         dest = env.getIRBuilder().CreateOr(dest, src, "concat");
 

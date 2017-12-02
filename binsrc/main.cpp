@@ -72,16 +72,17 @@ int main(int argc, char *argv[])
   assert(update_state && compute_outputs);
 
   vector<uint8_t> state = top.getSimInfo().allocateState();
-  for (unsigned i = 0; i < 10; i++) {
+  for (unsigned i = 0; i < 30; i++) {
     int x = compute_outputs(state.data());
     update_state(state.data());
     cout << x << endl;
-    cout << "State: ";
-    for (unsigned i = 0; i < state.size(); i++) {
-      cout << (int)state[i];
-    }
-    cout << endl;
   }
+
+  cout << "State: ";
+  for (unsigned i = 0; i < state.size(); i++) {
+    cout << (int)state[i];
+  }
+  cout << endl;
 
 
   /* -------------------------- */
