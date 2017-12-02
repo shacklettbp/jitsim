@@ -199,7 +199,7 @@ static llvm::Value * incrementStatePtr(const Instance *inst, llvm::Value *cur_pt
 
   int incr = info.getNumStateBytes();
 
-  return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), incr));
+  return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), APInt(64, incr, false)));
 }
 
 static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironment &mod_env)
@@ -222,15 +222,20 @@ static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironmen
     }
   }
 
-  llvm::Value *state_ptr;
+  llvm::Value *state_ptr = nullptr;
   if (is_stateful) {
-    state_ptr = compute_outputs.getFunction()->args()[outputs.size()];
+    state_ptr = compute_outputs.getFunction()->arg_end() - 1;
     state_ptr->setName("state_ptr");
   }
 
-  for (const Instance *inst : defn_info.getOutputDeps()) {
+  const std::vector<const Instance *> &output_deps = defn_info.getOutputDeps();
+  for (unsigned i = 0; i < output_deps.size(); i++) {
+    const Instance *inst = output_deps[i];
     makeInstanceComputeOutput(inst, compute_outputs, state_ptr);
-    state_ptr = incrementStatePtr(inst, state_ptr);
+
+    if (i < output_deps.size() - 1) {
+      state_ptr = incrementStatePtr(inst, state_ptr, compute_outputs);
+    }
   }
 
   const std::vector<JITSim::Input> & inputs = definition.getIFace().getInputs();

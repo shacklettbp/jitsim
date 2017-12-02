@@ -22,7 +22,6 @@ private:
   bool is_stateful;
   unsigned int num_state_bytes;
 
-  unsigned int calculateNumStateBytes() const;
 public:
   SimInfo(const IFace &interface, const std::vector<Instance> &instances);
   SimInfo(const Primitive &primitive);

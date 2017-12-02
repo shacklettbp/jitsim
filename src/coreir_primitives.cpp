@@ -2,6 +2,8 @@
 
 #include <coreir/ir/namespace.h>
 
+#include <jitsim/circuit.hpp>
+
 namespace JITSim {
 
 using namespace std;
@@ -12,9 +14,9 @@ Primitive BuildReg(CoreIR::Module *mod)
   return Primitive(true, 1,
     [&](auto &env, auto &args, auto &inst)
     {
-      llvm::Value *addr = args[0];
+      int width = inst.getIFace().getOutputs()[0].getWidth();
+      llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[0], llvm::Type::getIntNPtrTy(env.getContext(), width));
       llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
-      //llvm::Value *output = llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 1, false));
 
       return std::vector<llvm::Value *> { output };
     },

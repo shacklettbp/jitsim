@@ -112,6 +112,15 @@ bool order_instances(const IFace &interface,
   return stateful;
 }
 
+static unsigned int calculateNumStateBytes(const vector<const Instance *> &stateful_instances)
+{
+  unsigned int total_state_bytes = 0;
+  for (const Instance *inst : stateful_instances) {
+    total_state_bytes += inst->getSimInfo().getNumStateBytes();
+  }
+  return total_state_bytes;
+}
+
 SimInfo::SimInfo(const IFace &interface, const vector<Instance> &instances)
   : state_deps(),
     output_deps(),
@@ -121,7 +130,7 @@ SimInfo::SimInfo(const IFace &interface, const vector<Instance> &instances)
     num_state_bytes(0)
 {
   is_stateful = order_instances(interface, instances, state_deps, output_deps, stateful_insts);
-  num_state_bytes = calculateNumStateBytes();
+  num_state_bytes = calculateNumStateBytes(stateful_insts);
 }
 
 SimInfo::SimInfo(const Primitive &primitive_)
@@ -130,27 +139,13 @@ SimInfo::SimInfo(const Primitive &primitive_)
     stateful_insts(),
     primitive(primitive_),
     is_stateful(primitive->is_stateful),
-    num_state_bytes(calculateNumStateBytes())
+    num_state_bytes(primitive->num_state_bytes)
 {
-}
-
-unsigned int SimInfo::calculateNumStateBytes() const
-{
-  std::vector<const Instance *> stateful_instances = getStatefulInstances();
-  unsigned int total_state_bytes;
-  for (const Instance *inst : stateful_instances) {
-    if (isPrimitive()) {
-      return getPrimitive().num_state_bytes;
-    } else {
-      total_state_bytes += inst->getSimInfo().getNumStateBytes();
-    }
-  }
-  return total_state_bytes;
 }
 
 vector<uint8_t> SimInfo::allocateState() const
 {
-  return {};
+  return vector<uint8_t>(num_state_bytes, 0);
 }
 
 void SimInfo::print(const string &prefix) const
