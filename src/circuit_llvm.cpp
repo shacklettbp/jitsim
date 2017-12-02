@@ -37,7 +37,7 @@ std::vector<Type *> getArgTypes(const Definition &definition, ModuleEnvironment 
   return arg_types;
 }
 
-std::string getComputeOutputsName(const Definition &definition)
+std::string getComputeOutputName(const Definition &definition)
 {
   return Twine(definition.getSafeName(), "_compute_outputs").str();
 }
@@ -58,14 +58,14 @@ static StructType *makeReturnType(const Definition &definition, ModuleEnvironmen
   return StructType::create(mod_env.getContext(), elem_types, out_type_name);
 }
 
-static FunctionType * makeComputeOutputsType(const Definition &definition, ModuleEnvironment &mod_env) 
+static FunctionType * makeComputeOutputType(const Definition &definition, ModuleEnvironment &mod_env) 
 {
-  Function *decl = mod_env.getFunctionDecl(getComputeOutputsName(definition));
+  Function *decl = mod_env.getFunctionDecl(getComputeOutputName(definition));
   if (decl) {
     return decl->getFunctionType();
   }
 
-  bool is_stateful = definition.getSimInfo().isStateful()
+  bool is_stateful = definition.getSimInfo().isStateful();
 
   std::vector<Type *> arg_types;
   if (!is_stateful) { /* FIXME */
@@ -73,7 +73,7 @@ static FunctionType * makeComputeOutputsType(const Definition &definition, Modul
   }
 
   if (is_stateful) {
-    arg_types.push_back(Type::getInt8PtrTy(mod_env));
+    arg_types.push_back(Type::getInt8PtrTy(mod_env.getContext()));
   }
 
   StructType *ret_type = makeReturnType(definition, mod_env);
@@ -89,7 +89,7 @@ static FunctionType * makeUpdateStateType(const Definition &definition, ModuleEn
   }
 
   std::vector<Type *> arg_types = getArgTypes(definition, mod_env);
-  arg_types.push_back(Type::getInt8PtrTy(mod_env));
+  arg_types.push_back(Type::getInt8PtrTy(mod_env.getContext()));
 
   return FunctionType::get(Type::getVoidTy(mod_env.getContext()), arg_types, false);
 }
@@ -147,7 +147,7 @@ static llvm::Value * makeValueReference(const Select &select, FunctionEnvironmen
   }
 }
 
-static void makeInstanceComputeOutputs(const Instance *inst, FunctionEnvironment &env)
+static void makeInstanceComputeOutput(const Instance *inst, FunctionEnvironment &env, llvm::Value *state_ptr)
 {
   const SimInfo &info = inst->getDefinition().getSimInfo();
   const IFace &iface = inst->getIFace();
@@ -162,15 +162,19 @@ static void makeInstanceComputeOutputs(const Instance *inst, FunctionEnvironment
     }
   }
 
+  if (info.isStateful()) {
+    argument_values.push_back(state_ptr);
+  }
+
   std::vector<llvm::Value *> ret_values;
   if (info.isPrimitive()) {
     const Primitive &prim = info.getPrimitive();
     ret_values = prim.make_compute_output(env, argument_values, *inst);
   } else {
-    std::string inst_comp_outputs = getComputeOutputsName(inst->getDefinition());
+    std::string inst_comp_outputs = getComputeOutputName(inst->getDefinition());
     Function *inst_func = env.getModule().getFunctionDecl(inst_comp_outputs);
     if (inst_func == nullptr) {
-      inst_func = env.getModule().makeFunctionDecl(inst_comp_outputs, makeComputeOutputsType(inst->getDefinition(), env.getModule()));
+      inst_func = env.getModule().makeFunctionDecl(inst_comp_outputs, makeComputeOutputType(inst->getDefinition(), env.getModule()));
     }
 
     llvm::Value *ret_struct = env.getIRBuilder().CreateCall(inst_func, argument_values, "inst_output");
@@ -185,26 +189,48 @@ static void makeInstanceComputeOutputs(const Instance *inst, FunctionEnvironment
   }
 }
 
-static void makeComputeOutputsDefn(const Definition &definition, ModuleEnvironment &mod_env)
+static llvm::Value * incrementStatePtr(const Instance *inst, llvm::Value *cur_ptr, FunctionEnvironment &env)
+{
+  const SimInfo &info = inst->getDefinition().getSimInfo();
+
+  if (!info.isStateful()) {
+    return cur_ptr;
+  }
+
+  int incr = info.getNumStateBytes();
+
+  return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), incr));
+}
+
+static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironment &mod_env)
 {
   const SimInfo &defn_info = definition.getSimInfo();
-  FunctionType *co_type = makeComputeOutputsType(definition, mod_env);
-  FunctionEnvironment compute_outputs = mod_env.makeFunction(getComputeOutputsName(definition), co_type);
+  bool is_stateful = defn_info.isStateful();
+
+  FunctionType *co_type = makeComputeOutputType(definition, mod_env);
+  FunctionEnvironment compute_outputs = mod_env.makeFunction(getComputeOutputName(definition), co_type);
   compute_outputs.addBasicBlock("entry");
 
-  int idx = 0;
   const std::vector<JITSim::Value> & outputs = definition.getIFace().getOutputs();
-  for (llvm::Value &arg : compute_outputs.getFunction()->args()) {
-    const JITSim::Value *val = &outputs[idx];
+  auto arg = compute_outputs.getFunction()->arg_begin();
+  if (!is_stateful) {
+    for (unsigned i = 0; i < outputs.size(); i++, arg++) {
+      const JITSim::Value *val = &outputs[i];
 
-    compute_outputs.addValue(val, &arg);
-    arg.setName("self." + val->getName());
+      compute_outputs.addValue(val, arg);
+      arg->setName("self." + val->getName());
+    }
+  }
 
-    idx++;
+  llvm::Value *state_ptr;
+  if (is_stateful) {
+    state_ptr = compute_outputs.getFunction()->args()[outputs.size()];
+    state_ptr->setName("state_ptr");
   }
 
   for (const Instance *inst : defn_info.getOutputDeps()) {
-    makeInstanceComputeOutputs(inst, compute_outputs);
+    makeInstanceComputeOutput(inst, compute_outputs, state_ptr);
+    state_ptr = incrementStatePtr(inst, state_ptr);
   }
 
   const std::vector<JITSim::Input> & inputs = definition.getIFace().getInputs();
@@ -240,7 +266,7 @@ ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &defini
 
   ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName());
 
-  makeComputeOutputsDefn(definition, mod_env);
+  makeComputeOutputDefn(definition, mod_env);
 
   if (siminfo.isStateful()) {
     makeUpdateStateDefn(definition, mod_env);
