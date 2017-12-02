@@ -14,6 +14,7 @@ struct Primitive {
 public:
   bool is_stateful;
   bool has_definition;
+  unsigned int num_state_bytes;
   std::function<std::vector<llvm::Value *> (
       FunctionEnvironment &env, const std::vector<llvm::Value *> &args, const Instance &inst
       )> make_compute_output;
@@ -23,6 +24,7 @@ public:
   std::function<void (ModuleEnvironment &env)> make_def;
 
   Primitive(bool is_stateful_,
+            unsigned int num_state_bytes_,
             std::function<std::vector<llvm::Value *> (
               FunctionEnvironment &, const std::vector<llvm::Value *> &, const Instance &
               )> make_compute_output_,
@@ -32,6 +34,7 @@ public:
             std::function<void(ModuleEnvironment &)> make_def_)
     : is_stateful(is_stateful_),
       has_definition(true),
+      num_state_bytes(num_state_bytes_),
       make_compute_output(make_compute_output_),
       make_update_state(make_update_state_),
       make_def(make_def_)
@@ -39,6 +42,7 @@ public:
   }
   
   Primitive(bool is_stateful_,
+            unsigned int num_state_bytes_,
             std::function<std::vector<llvm::Value *> (
               FunctionEnvironment &, const std::vector<llvm::Value *> &, const Instance &
               )> make_compute_output_,
@@ -47,6 +51,7 @@ public:
               )> make_update_state_)
     : is_stateful(is_stateful_),
       has_definition(false),
+      num_state_bytes(num_state_bytes_),
       make_compute_output(make_compute_output_),
       make_update_state(make_update_state_),
       make_def()
@@ -58,6 +63,7 @@ public:
         )> make_compute_output_)
     : is_stateful(false),
       has_definition(false),
+      num_state_bytes(0),
       make_compute_output(make_compute_output_),
       make_update_state(),
       make_def()

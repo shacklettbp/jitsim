@@ -9,7 +9,7 @@ using namespace std;
 
 Primitive BuildReg(CoreIR::Module *mod)
 {
-  return Primitive(true,
+  return Primitive(true, 1,
     [&](auto &env, auto &args, auto &inst)
     {
       //llvm::Value *addr = args[0];
