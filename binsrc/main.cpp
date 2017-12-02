@@ -49,17 +49,35 @@ int main(int argc, char *argv[])
 
   Builder builder;
 
+  initializeNativeTarget();
+  JIT jit;
+  vector<JIT::ModuleHandle> handles;
+
   vector<ModuleEnvironment> modules = ModulesForCircuit(builder, circuit);
   for (const ModuleEnvironment & mod : modules) {
     cout << "\n=================\n\n";
     cout << mod.getIRStr();
   }
 
-  initializeNativeTarget();
-  JIT jit;
+  // Add all modules to the JIT.
+  for (ModuleEnvironment & mod : modules) {
+    handles.push_back(jit.addModule(mod.returnModule()));;
+  }
+  
+  /* ------- Execute here ------- */
+
+
+  /* -------------------------- */
+  
+  // Remove all modules from the JIT.
+  for (JIT::ModuleHandle &handle : handles) {
+    jit.removeModule(handle);
+  }
+
+  /* --- BuilderHardcoded Testing --- */
 
   /*BuilderHardcoded hc_builder;
-  JITSim::JIT::ModuleHandle sl_handle = jit.addModule(hc_builder.makeStoreLoadModule());
+  JIT::ModuleHandle sl_handle = jit.addModule(hc_builder.makeStoreLoadModule());
   std::function<void(char *)> Store = (void(*)(char *))jit.getSymbolAddress("storeConstant");
   void *mem_addr = malloc(1);
   Store((char *)mem_addr);
@@ -70,14 +88,15 @@ int main(int argc, char *argv[])
   free(mem_addr);
   jit.removeModule(sl_handle);*/
 
-  //JITSim::JIT::ModuleHandle handle = jit.addModule(builder.makeExternModule());
+  //JIT::ModuleHandle handle = jit.addModule(builder.makeExternModule());
   //std::function<int()> Adder = (int(*)())jit.getSymbolAddress("wrapadd");
   //int Result = Adder();
   //cout << Result << endl;
-  //
-  //JITSim::JIT::ModuleHandle new_handle = jit.addModule(builder.makeStructModule());
+
+  //JIT::ModuleHandle new_handle = jit.addModule(builder.makeStructModule());
 
   //jit.removeModule(handle);
   //jit.removeModule(new_handle);
+
   return 0;
 }
