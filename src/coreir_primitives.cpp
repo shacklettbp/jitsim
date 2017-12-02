@@ -12,10 +12,16 @@ Primitive BuildReg(CoreIR::Module *mod)
   return Primitive(true,
     [&](auto &env, auto &args)
     {
-      return std::vector<llvm::Value *>();
+      llvm::Value *addr = args[0];
+      llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
+
+      return std::vector<llvm::Value *> { output };
     },
     [&](auto &env, auto &args)
     {
+      llvm::Value *input = args[0];
+      llvm::Value *addr = args[1];
+      env.getIRBuilder().CreateStore(input, addr);
     },
     [&](auto &env)
     {
