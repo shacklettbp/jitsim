@@ -21,14 +21,14 @@ namespace JITSim {
 class IFace;
 class Definition;
 class Instance;
-class ValueSlice;
+class SourceSlice;
 
-class Value {
+class Source {
 private:
   std::string name;
   int width;
 public:
-  Value(const std::string &name_, int w)
+  Source(const std::string &name_, int w)
     : name(name_), width(w)
   {}
 
@@ -36,72 +36,72 @@ public:
   int getWidth() const { return width; }
 };
 
-class ValueSlice {
+class SourceSlice {
 private:
   const Definition *definition;
   const Instance *instance;
   const IFace *iface;
-  const Value *val;
+  const Source *val;
   int offset;
   int width;
   std::optional<llvm::APInt> constant;
 
 public:
-  ValueSlice(const Definition *definition_, const Instance *instance_,
-             const Value *val_, int offset_, int width_);
+  SourceSlice(const Definition *definition_, const Instance *instance_,
+             const Source *val_, int offset_, int width_);
 
-  ValueSlice(const std::vector<bool> &constant_);
+  SourceSlice(const std::vector<bool> &constant_);
 
   const Definition * getDefinition() const { return definition; }
   const Instance * getInstance() const { return instance; }
   const IFace * getIFace() const { return iface; }
-  const Value * getValue() const { return val; }
+  const Source * getSource() const { return val; }
   const llvm::APInt & getConstant() const { return *constant; }
 
   int getEndIdx() const { return offset + width; }
   int getWidth() const { return width; }
   int getOffset() const { return offset; }
   bool isWhole() const { return offset == 0 && width == val->getWidth(); }
-  bool isConstant() const { return constant.has_value(); }
+  bool isConstant() const { return constant.has_source(); }
   bool isDefinitionAttached() const { return !!definition; }
   bool isInstanceAttached() const { return !!instance; }
 
-  void extend(const ValueSlice &other);
+  void extend(const SourceSlice &other);
 
   std::string repr() const;
 };
 
 class Select {
 private:
-  std::vector<ValueSlice> slices;
+  std::vector<SourceSlice> slices;
 
   bool has_many_slices = true;
 
-  const ValueSlice *direct_value = nullptr;
+  const SourceSlice *direct_source = nullptr;
 
   void compressSlices();
 public:
-  Select(ValueSlice &&slice_);
-  Select(std::vector<ValueSlice> &&slices_);
+  Select(SourceSlice &&slice_);
+  Select(std::vector<SourceSlice> &&slices_);
 
-  const std::vector<ValueSlice> & getSlices() const { return slices; }
+  const std::vector<SourceSlice> & getSlices() const { return slices; }
 
-  bool isDirect() const { return direct_value != nullptr; }
-  const ValueSlice & getDirect() const { return *direct_value; }
+  bool isDirect() const { return direct_source != nullptr; }
+  const SourceSlice & getDirect() const { return *direct_source; }
 
   std::string repr() const;
 };
 
-class Input {
+class Sink {
 private:
   std::string name;
   int width;
   std::optional<Select> select;
 public:
-  Input(const std::string &name_, int w)
+  Sink(const std::string &name_, int w)
     : name(name_), width(w), select() {}
 
-  bool isConnected() const { return select.has_value(); }
+  bool isConnected() const { return select.has_source(); }
   void connect(Select &&conn) { select = std::move(conn); }
 
   const Select & getSelect() const { return *select; }
@@ -111,66 +111,66 @@ public:
 };
 
 
-class ClkValue {
+class ClkSource {
 private:
   std::string name;
 public:
-  ClkValue(const std::string &name_)
+  ClkSource(const std::string &name_)
     : name(name_)
   {}
 
   const std::string & getName() const { return name; }
 };
 
-class ClkInput {
+class ClkSink {
 private:
   std::string name;
-  const ClkValue *source;
+  const ClkSource *source;
 public:
-  ClkInput(const std::string &name_, const ClkValue *source_)
+  ClkSink(const std::string &name_, const ClkSource *source_)
     : name(name_), source(source_)
   {}
 
   const std::string & getName() const { return name; }
 
   bool isConnected() const { return source != nullptr; }
-  void connect(const ClkValue *source_) { source = source_; }
+  void connect(const ClkSource *source_) { source = source_; }
 };
 
 class IFace {
 private:
   std::string name;
-  std::vector<Input> inputs;
-  std::vector<Value> outputs;
-  std::vector<ClkInput> clk_inputs;
-  std::vector<ClkValue> clk_outputs;
-  std::unordered_map<std::string, Input *> input_lookup;
-  std::unordered_map<std::string, Value *> output_lookup;
+  std::vector<Sink> sinks;
+  std::vector<Source> sources;
+  std::vector<ClkSink> clk_sinks;
+  std::vector<ClkSource> clk_sources;
+  std::unordered_map<std::string, Sink *> sink_lookup;
+  std::unordered_map<std::string, Source *> source_lookup;
   bool is_definition;
 public:
   IFace(const std::string &name_,
-        std::vector<Input> &&inputs_,
-        std::vector<Value> &&outputs_,
-        std::vector<ClkInput> &&clk_inputs,
-        std::vector<ClkValue> &&clk_outputs,
+        std::vector<Sink> &&sinks_,
+        std::vector<Source> &&sources_,
+        std::vector<ClkSink> &&clk_sinks,
+        std::vector<ClkSource> &&clk_sources,
         const bool is_definition_);
 
   IFace(const IFace &) = delete;
   IFace(IFace &&) = default;
 
   const std::string & getName() const { return name; }
-  const std::vector<Value> & getOutputs() const { return outputs; }
-  const std::vector<Input> & getInputs() const { return inputs; }
-  std::vector<Value> & getOutputs() { return outputs; }
-  std::vector<Input> & getInputs() { return inputs; }
+  const std::vector<Source> & getSources() const { return sources; }
+  const std::vector<Sink> & getSinks() const { return sinks; }
+  std::vector<Source> & getSources() { return sources; }
+  std::vector<Sink> & getSinks() { return sinks; }
 
-  const std::vector<ClkValue> & getClkOutputs() const { return clk_outputs; }
-  const std::vector<ClkInput> & getClkInputs() const { return clk_inputs; }
+  const std::vector<ClkSource> & getClkSources() const { return clk_sources; }
+  const std::vector<ClkSink> & getClkSinks() const { return clk_sinks; }
 
-  const Value * getOutput(const std::string &name) const;
-  const Input * getInput(const std::string &name) const;
-  Value * getOutput(const std::string &name);
-  Input * getInput(const std::string &name);
+  const Source * getSource(const std::string &name) const;
+  const Sink * getSink(const std::string &name) const;
+  Source * getSource(const std::string &name);
+  Sink * getSink(const std::string &name);
 
   void print(const std::string &prefix = "") const;
   void print_connectivity(const std::string &prefix = "") const;

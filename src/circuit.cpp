@@ -14,8 +14,8 @@ namespace JITSim {
 
 using namespace std;
 
-ValueSlice::ValueSlice(const Definition *definition_, const Instance *instance_,
-                       const Value *val_, int offset_, int width_)
+SourceSlice::SourceSlice(const Definition *definition_, const Instance *instance_,
+                       const Source *val_, int offset_, int width_)
   : definition(definition_), instance(instance_),
     iface(definition ? &definition->getIFace() : &instance->getIFace()),
     val(val_), offset(offset_), width(width_),
@@ -33,13 +33,13 @@ llvm::APInt makeAPInt(const std::vector<bool> &constant)
   return llvm::APInt(constant.size(), llvm::StringRef(s), 2);
 }
 
-ValueSlice::ValueSlice(const std::vector<bool> &constant_)
+SourceSlice::SourceSlice(const std::vector<bool> &constant_)
   : definition(nullptr), instance(nullptr), iface(nullptr),
     val(nullptr), offset(0), width(constant_.size()),
     constant(makeAPInt(constant_))
 {}
 
-void ValueSlice::extend(const ValueSlice &other)
+void SourceSlice::extend(const SourceSlice &other)
 {
   width += other.width;
 
@@ -51,11 +51,11 @@ void ValueSlice::extend(const ValueSlice &other)
   }
 }
 
-Select::Select(ValueSlice &&slice) 
-  : Select(move(vector<ValueSlice>(1, move(slice))))
+Select::Select(SourceSlice &&slice) 
+  : Select(move(vector<SourceSlice>(1, move(slice))))
 {}
 
-Select::Select(std::vector<ValueSlice> &&slices_)
+Select::Select(std::vector<SourceSlice> &&slices_)
   : slices(move(slices_))
 {
   compressSlices();
@@ -63,13 +63,13 @@ Select::Select(std::vector<ValueSlice> &&slices_)
 
 void Select::compressSlices()
 {
-  vector<ValueSlice> new_slices;
+  vector<SourceSlice> new_slices;
   new_slices.emplace_back(slices.front());
   for (unsigned i = 1; i < slices.size(); i++) {
-    const ValueSlice &cur_slice = slices[i];
-    ValueSlice &new_slice = new_slices.back();
+    const SourceSlice &cur_slice = slices[i];
+    SourceSlice &new_slice = new_slices.back();
 
-    if ((cur_slice.getValue() == new_slice.getValue() &&
+    if ((cur_slice.getSource() == new_slice.getSource() &&
         cur_slice.getOffset() == new_slice.getEndIdx()) ||
         (cur_slice.isConstant() && new_slice.isConstant())) {
 
@@ -84,53 +84,53 @@ void Select::compressSlices()
   if (slices.size() == 1) {
     has_many_slices = false;
     if (slices[0].isConstant() || slices[0].isWhole()) {
-      direct_value = &slices[0];
+      direct_source = &slices[0];
     }
   }
 }
 
 IFace::IFace(const string &name_,
-             vector<Input> &&inputs_,
-             vector<Value> &&outputs_,
-             vector<ClkInput> &&clk_inputs_,
-             vector<ClkValue> &&clk_outputs_,
+             vector<Sink> &&sinks_,
+             vector<Source> &&sources_,
+             vector<ClkSink> &&clk_sinks_,
+             vector<ClkSource> &&clk_sources_,
              bool is_defn)
   : name(name_),
-    inputs(move(inputs_)),
-    outputs(move(outputs_)), 
-    clk_inputs(move(clk_inputs_)),
-    clk_outputs(move(clk_outputs_)), 
-    input_lookup(),
-    output_lookup(),
+    sinks(move(sinks_)),
+    sources(move(sources_)), 
+    clk_sinks(move(clk_sinks_)),
+    clk_sources(move(clk_sources_)), 
+    sink_lookup(),
+    source_lookup(),
     is_definition(is_defn)
 {
-  for (Value &output : outputs) {
-    output_lookup[output.getName()] = &output;
+  for (Source &source : sources) {
+    source_lookup[source.getName()] = &source;
   }
 
-  for (Input &input : inputs) {
-    input_lookup[input.getName()] = &input;
+  for (Sink &sink : sinks) {
+    sink_lookup[sink.getName()] = &sink;
   }
 }
 
-const Value * IFace::getOutput(const std::string &name) const
+const Source * IFace::getSource(const std::string &name) const
 {
-  return output_lookup.find(name)->second;
+  return source_lookup.find(name)->second;
 }
 
-Value * IFace::getOutput(const std::string &name)
+Source * IFace::getSource(const std::string &name)
 {
-  return output_lookup.find(name)->second;
+  return source_lookup.find(name)->second;
 }
 
-const Input * IFace::getInput(const std::string &name) const
+const Sink * IFace::getSink(const std::string &name) const
 {
-  return input_lookup.find(name)->second;
+  return sink_lookup.find(name)->second;
 }
 
-Input * IFace::getInput(const std::string &name)
+Sink * IFace::getSink(const std::string &name)
 {
-  return input_lookup.find(name)->second;
+  return sink_lookup.find(name)->second;
 }
 
 Instance::Instance(const string &name_,
@@ -190,31 +190,31 @@ Definition::Definition(const string &name_,
 
 Instance Definition::makeInstance(const string &name) const
 {
-  vector<Input> inputs;
-  vector<Value> outputs;
-  vector<ClkInput> clk_inputs;
-  vector<ClkValue> clk_outputs;
+  vector<Sink> sinks;
+  vector<Source> sources;
+  vector<ClkSink> clk_sinks;
+  vector<ClkSource> clk_sources;
 
-  for (const Input &input : interface.getInputs()) {
-    outputs.emplace_back(input.getName(), input.getWidth());
+  for (const Sink &sink : interface.getSinks()) {
+    sources.emplace_back(sink.getName(), sink.getWidth());
   }
 
-  for (const Value &val  : interface.getOutputs()) {
-    inputs.emplace_back(val.getName(), val.getWidth());
+  for (const Source &val  : interface.getSources()) {
+    sinks.emplace_back(val.getName(), val.getWidth());
   }
 
-  for (const ClkInput &input : interface.getClkInputs()) {
-    clk_outputs.emplace_back(input.getName());
+  for (const ClkSink &sink : interface.getClkSinks()) {
+    clk_sources.emplace_back(sink.getName());
   }
 
-  for (const ClkValue &val : interface.getClkOutputs()) {
-    clk_inputs.emplace_back(val.getName(), nullptr);
+  for (const ClkSource &val : interface.getClkSources()) {
+    clk_sinks.emplace_back(val.getName(), nullptr);
   }
 
-  return Instance(name, IFace(name, move(inputs), move(outputs), move(clk_inputs), move(clk_outputs), false), this);
+  return Instance(name, IFace(name, move(sinks), move(sources), move(clk_sinks), move(clk_sources), false), this);
 }
 
-string ValueSlice::repr() const
+string SourceSlice::repr() const
 {
   stringstream r;
 
@@ -244,7 +244,7 @@ string Select::repr() const
   }
 
   for (unsigned i = 0; i < slices.size(); i++) {
-    const ValueSlice &slice = slices[i];
+    const SourceSlice &slice = slices[i];
     rep << slice.repr();
     if (i != slices.size() - 1) {
       rep << ", ";
@@ -261,31 +261,31 @@ string Select::repr() const
 void IFace::print(const string &prefix) const 
 {
   if (is_definition) {
-    cout << prefix << "Inputs:\n";
+    cout << prefix << "Sinks:\n";
   } else {
-    cout << prefix << "Outputs:\n";
+    cout << prefix << "Sources:\n";
   }
-  for (const Value &output : outputs) {
-    cout << prefix << "  " << output.getName() << ": " << output.getWidth() << endl;
+  for (const Source &source : sources) {
+    cout << prefix << "  " << source.getName() << ": " << source.getWidth() << endl;
   }
 
   if (is_definition) {
-    cout << prefix << "Outputs:\n";
+    cout << prefix << "Sources:\n";
   } else {
-    cout << prefix << "Inputs:\n";
+    cout << prefix << "Sinks:\n";
   }
-  for (const Input &input : inputs) {
-    cout << prefix << "  " << input.getName() << ": " << input.getWidth() << endl;
+  for (const Sink &sink : sinks) {
+    cout << prefix << "  " << sink.getName() << ": " << sink.getWidth() << endl;
   }
 }
 
 void IFace::print_connectivity(const string &prefix) const 
 {
-  for (const Input &input : inputs) {
-    cout << prefix << input.getName() << ": ";
-    assert(input.isConnected());
+  for (const Sink &sink : sinks) {
+    cout << prefix << sink.getName() << ": ";
+    assert(sink.isConnected());
 
-    const Select &sel = input.getSelect();
+    const Select &sel = sink.getSelect();
     cout << sel.repr() << endl;
   }
 }
