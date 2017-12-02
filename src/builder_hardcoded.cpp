@@ -58,6 +58,9 @@ std::unique_ptr<Module> BuilderHardcoded::makeStructModule() {
   OS.flush();
   std::cout << str << std::endl;
 
+  // Verify generated code is consistent.
+  verifyFunction(*fn);
+
   return module;
 }
 
@@ -97,7 +100,7 @@ std::unique_ptr<Module> BuilderHardcoded::makeExternModule() {
   OS.flush();
   std::cout << str << std::endl;
 
-  // Verify generate code is consistent.
+  // Verify generated code is consistent.
   verifyFunction(*fn);
 
   return module;
@@ -106,9 +109,69 @@ std::unique_ptr<Module> BuilderHardcoded::makeExternModule() {
 std::unique_ptr<Module> BuilderHardcoded::makeStoreLoadModule() {
   std::unique_ptr<Module> module = make_unique<Module>("store/load", context);
 
+  /* ----------- BEGIN storeConstant() ------------- */
+
+  // Create function type: void(i8*).
+  std::vector<Type *> store_input(1, Type::getInt8PtrTy(context));
+  FunctionType *store_fn_type = FunctionType::get(Type::getVoidTy(context), store_input, false);
+  // Create declaration of storeConstant().
+  Function *store_fn = Function::Create(store_fn_type, Function::ExternalLinkage, "storeConstant", module.get());
+  (void)store_fn;
+    
+  // Create a Basic Block and set the insert point.
+  BasicBlock *store_basic_block = BasicBlock::Create(context, "store_entry", store_fn);
+  ir_builder.SetInsertPoint(store_basic_block);
+
+  // Get the argument(s).
+  Value *store_addr = store_fn->args().begin();
+  store_addr->setName("store_addr");
+  
+  // Store a constant at the input address.
+  Value *store_constant = ConstantInt::get(context, APInt(8, 5, true));  
+  ir_builder.CreateStore(store_constant, store_addr);
+
+  // Return void.
+  ir_builder.CreateRetVoid();
+
+  /* ----------- END storeConstant() ------------- */
+
+  /* ----------- BEGIN loadConstant() ------------- */
+
+  // Create function type: i8(i8*).
+  std::vector<Type *> load_input(1, Type::getInt8PtrTy(context));
+  FunctionType *load_fn_type = FunctionType::get(Type::getInt8Ty(context), load_input, false);
+  // Create declaration
+  Function *load_fn = Function::Create(load_fn_type, Function::ExternalLinkage, "loadConstant", module.get());
+  (void)load_fn;
+
+  // Create a Basic Block and set the insert point.
+  BasicBlock *load_basic_block = BasicBlock::Create(context, "load_entry", load_fn);
+  ir_builder.SetInsertPoint(load_basic_block);
+
+  // Get the argument(s).
+  Value *load_addr = load_fn->args().begin();
+  load_addr->setName("load_addr");
+  
+  // Load the constant at the input address.
+  Value *load_constant = ir_builder.CreateLoad(load_addr, "constant");
+
+  // Return the loaded constant.
+  ir_builder.CreateRet(load_constant);
+
+  /* ----------- END loadConstant() ------------- */
+
+  // Debugging: inspect contents of module.
+  std::string str;
+  raw_string_ostream OS(str);
+  OS << *module;
+  OS.flush();
+  std::cout << str << std::endl;
+
+  // Verify generated code is consistent.
+  verifyFunction(*store_fn);
+  verifyFunction(*load_fn);
+
   return module;
 }
-
-
 
 } // end namespace JITSim

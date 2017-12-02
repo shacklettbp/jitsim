@@ -19,7 +19,7 @@ class BuilderHardcoded {
   public:
 
     BuilderHardcoded();
-    // Makes hard-coded module
+    // Makes hard-coded modules
     std::unique_ptr<llvm::Module> makeStructModule();
     std::unique_ptr<llvm::Module> makeExternModule();
     std::unique_ptr<llvm::Module> makeStoreLoadModule();
