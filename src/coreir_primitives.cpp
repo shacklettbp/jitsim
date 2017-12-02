@@ -14,7 +14,7 @@ Primitive BuildReg(CoreIR::Module *mod)
   return Primitive(true, 1,
     [&](auto &env, auto &args, auto &inst)
     {
-      int width = inst.getIFace().getOutputs()[0].getWidth();
+      int width = inst.getIFace().getSources()[0].getWidth();
       llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[0], llvm::Type::getIntNPtrTy(env.getContext(), width));
       llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
 
