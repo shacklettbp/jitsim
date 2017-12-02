@@ -65,10 +65,17 @@ static FunctionType * makeComputeOutputsType(const Definition &definition, Modul
     return decl->getFunctionType();
   }
 
+  bool is_stateful = definition.getSimInfo().isStateful()
+
   std::vector<Type *> arg_types;
-  if (!definition.getSimInfo().isStateful()) {
-      arg_types = getArgTypes(definition, mod_env);
+  if (!is_stateful) { /* FIXME */
+    arg_types = getArgTypes(definition, mod_env);
   }
+
+  if (is_stateful) {
+    arg_types.push_back(Type::getInt8PtrTy(mod_env));
+  }
+
   StructType *ret_type = makeReturnType(definition, mod_env);
 
   return FunctionType::get(ret_type, arg_types, false);
@@ -82,6 +89,8 @@ static FunctionType * makeUpdateStateType(const Definition &definition, ModuleEn
   }
 
   std::vector<Type *> arg_types = getArgTypes(definition, mod_env);
+  arg_types.push_back(Type::getInt8PtrTy(mod_env));
+
   return FunctionType::get(Type::getVoidTy(mod_env.getContext()), arg_types, false);
 }
 

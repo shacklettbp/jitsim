@@ -148,6 +148,11 @@ unsigned int SimInfo::calculateNumStateBytes() const
   return total_state_bytes;
 }
 
+vector<uint8_t> SimInfo::allocateState() const
+{
+  return {};
+}
+
 void SimInfo::print(const string &prefix) const
 {
   cout << prefix << "Stateful instances:\n";
