@@ -49,6 +49,7 @@ std::string getUpdateStateName(const Definition &definition)
 
 static StructType *makeReturnType(const Definition &definition, ModuleEnvironment &mod_env)
 {
+  std::string out_type_name = definition.getSafeName() + "_output_type";
   std::vector<Type *> elem_types;
   for (const JITSim::Input &defn_output : definition.getIFace().getInputs()) {
     elem_types.push_back(Type::getIntNTy(mod_env.getContext(), defn_output.getWidth()));
@@ -64,9 +65,10 @@ static FunctionType * makeComputeOutputsType(const Definition &definition, Modul
     return decl->getFunctionType();
   }
 
-  std::string out_type_name = definition.getSafeName() + "_output_type";
-
-  std::vector<Type *> arg_types = getArgTypes(definition, mod_env);
+  std::vector<Type *> arg_types;
+  if (!definition.getSimInfo().isStateful()) {
+      getArgTypes(definition, mod_env);
+  }
   StructType *ret_type = makeReturnType(definition, mod_env);
 
   return FunctionType::get(ret_type, arg_types, false);
@@ -83,35 +85,68 @@ static FunctionType * makeUpdateStateType(const Definition &definition, ModuleEn
   return FunctionType::get(Type::getVoidTy(mod_env.getContext()), arg_types, false);
 }
 
+static llvm::Value * createSlice(llvm::Value *whole, int offset, int width, FunctionEnvironment &env)
+{
+  llvm::Value *cur = whole;
+  if (offset > 0) {
+    cur = env.getIRBuilder().CreateLShr(cur, offset);
+  }
+
+  return env.getIRBuilder().CreateTrunc(cur, Type::getIntNTy(env.getContext(), width));
+}
+
 static llvm::Value * makeValueReference(const Select &select, FunctionEnvironment &env)
 {
   if (select.isDirect()) {
-    JITSim::Value *source = select.getDirect();
+    const JITSim::Value *source = select.getDirect();
     return env.lookupValue(source);
   } else {
+    llvm::Value *acc = nullptr;
+    int total_width = 0;
     for (const ValueSlice &slice : select.getSlices()) {
+      llvm::Value *whole_val = env.lookupValue(slice.getValue());
+      llvm::Value *sliced_val = createSlice(whole_val, slice.getOffset(), slice.getWidth(), env);
+      total_width += slice.getWidth();
+
+      if (!acc) {
+        acc = sliced_val;
+      } else {
+        llvm::Value *src = env.getIRBuilder().CreateZExt(sliced_val, Type::getIntNTy(env.getContext(), total_width));
+        llvm::Value *dest = env.getIRBuilder().CreateZExt(acc, Type::getIntNTy(env.getContext(), total_width));
+
+        /* FIXME is this actually correct */
+        src = env.getIRBuilder().CreateShl(src, total_width - slice.getWidth());
+        dest = env.getIRBuilder().CreateOr(dest, src);
+
+        acc = dest;
+      }
     }
+    assert(acc);
+    return acc ;
   }
 }
 
 static void makeInstanceComputeOutputs(const Instance *inst, FunctionEnvironment &env)
 {
   const SimInfo &info = inst->getDefinition().getSimInfo();
-  const vector<JITSim::Value *> outputs = iface.getOutputs();
-
-  std::vector<Value *> argument_values;
   const IFace &iface = inst->getIFace();
+  const std::vector<JITSim::Value> &outputs = iface.getOutputs();
 
-  for (const Input &input : iface.getInputs()) {
-    argument_values.push_back(makeValueReference(input.getSelect()));
+  std::vector<llvm::Value *> argument_values;
+
+  if (!info.isStateful()) {
+    /* FIXME do this input by input to support more circuits */
+    for (const Input &input : iface.getInputs()) {
+      argument_values.push_back(makeValueReference(input.getSelect(), env));
+    }
   }
 
-  vector<llvm::Value *> ret_values;
+  std::vector<llvm::Value *> ret_values;
   if (info.isPrimitive()) {
     const Primitive &prim = info.getPrimitive();
-    ret_values = prim.make_compute_outputs(env, argument_values, rettype);
+    ret_values = prim.make_compute_output(env, argument_values);
   } else {
-    std::string inst_comp_outputs = getComputeOutputsName(inst->getDefinition())
+    std::string inst_comp_outputs = getComputeOutputsName(inst->getDefinition());
     Function *inst_func = env.getModule().getFunctionDecl(inst_comp_outputs);
     if (inst_func == nullptr) {
       inst_func = env.getModule().makeFunctionDecl(inst_comp_outputs, makeComputeOutputsType(inst->getDefinition(), env.getModule()));
@@ -120,12 +155,12 @@ static void makeInstanceComputeOutputs(const Instance *inst, FunctionEnvironment
     llvm::Value *ret_struct = env.getIRBuilder().CreateCall(inst_func, argument_values, "inst_output");
     for (unsigned i = 0; i < outputs.size(); i++) {
       llvm::Value *struct_elem = env.getIRBuilder().CreateExtractValue(ret_struct, { i });
-      ret_Values.push_back(struct_elem);
+      ret_values.push_back(struct_elem);
     }
   }
 
   for (unsigned i = 0; i < ret_values.size(); i++) {
-    env.addValue(outputs[i], retValues[i]);
+    env.addValue(&outputs[i], ret_values[i]);
   }
 }
 

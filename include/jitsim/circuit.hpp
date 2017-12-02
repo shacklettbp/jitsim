@@ -87,7 +87,7 @@ public:
   const std::vector<ValueSlice> & getSlices() const { return slices; }
 
   bool isDirect() const { return direct_value != nullptr; }
-  const Value *getDirect() { return direct_value->getValue(); }
+  const Value *getDirect() const { return direct_value->getValue(); }
 
   std::string repr() const;
 };
