@@ -16,9 +16,9 @@ unordered_set<const Instance *> get_dependencies(unordered_set<const IFace *> fr
     frontier.clear();
 
     for (const IFace *iface: old_frontier) {
-      for (const Input &input : iface->getInputs()) {
-        const Select &sel = input.getSelect();
-        for (const ValueSlice &slice : sel.getSlices()) {
+      for (const Sink &sink : iface->getSinks()) {
+        const Select &sel = sink.getSelect();
+        for (const SourceSlice &slice : sel.getSlices()) {
           if (slice.isConstant() || slice.isDefinitionAttached()) {
             continue;
           }
@@ -47,21 +47,21 @@ void topo_sort_instances(unordered_set<const Instance *> &unsorted, vector<const
     for (const Instance *candidate : unsorted) {
       bool instance_satisfied = true;
       if (!candidate->getSimInfo().isStateful()) {
-        for (const Input &input : candidate->getIFace().getInputs()) {
-          bool input_satisfied = true;
+        for (const Sink &sink : candidate->getIFace().getSinks()) {
+          bool sink_satisfied = true;
 
-          const Select &sel = input.getSelect();
-          for (const ValueSlice &slice : sel.getSlices()) {
+          const Select &sel = sink.getSelect();
+          for (const SourceSlice &slice : sel.getSlices()) {
             if (slice.isConstant() || slice.isDefinitionAttached()) {
               continue;
             }
             const Instance *depinst = slice.getInstance();
             if (sorted.count(depinst) == 0) {
-              input_satisfied = false;
+              sink_satisfied = false;
               break;
             }
           }
-          if (!input_satisfied) {
+          if (!sink_satisfied) {
             instance_satisfied = false;
             break;
           }
