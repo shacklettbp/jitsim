@@ -10,7 +10,7 @@ using namespace std;
 Primitive BuildReg(CoreIR::Module *mod)
 {
   return Primitive(true,
-    [&](auto &env, auto &args)
+    [&](auto &env, auto &args, auto &inst)
     {
       //llvm::Value *addr = args[0];
       //llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
@@ -18,7 +18,7 @@ Primitive BuildReg(CoreIR::Module *mod)
 
       return std::vector<llvm::Value *> { output };
     },
-    [&](auto &env, auto &args)
+    [&](auto &env, auto &args, auto &inst)
     {
       llvm::Value *input = args[0];
       llvm::Value *addr = args[1];
@@ -33,7 +33,7 @@ Primitive BuildReg(CoreIR::Module *mod)
 Primitive BuildAdd(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args)
+    [&](auto &env, auto &args, auto &inst)
     {
       llvm::Value *first = args[0];
       llvm::Value *second = args[1];

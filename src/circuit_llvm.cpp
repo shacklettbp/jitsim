@@ -156,7 +156,7 @@ static void makeInstanceComputeOutputs(const Instance *inst, FunctionEnvironment
   std::vector<llvm::Value *> ret_values;
   if (info.isPrimitive()) {
     const Primitive &prim = info.getPrimitive();
-    ret_values = prim.make_compute_output(env, argument_values);
+    ret_values = prim.make_compute_output(env, argument_values, *inst);
   } else {
     std::string inst_comp_outputs = getComputeOutputsName(inst->getDefinition());
     Function *inst_func = env.getModule().getFunctionDecl(inst_comp_outputs);

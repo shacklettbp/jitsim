@@ -8,23 +8,26 @@
 
 namespace JITSim {
 
+class Instance;
+
 struct Primitive {
 public:
   bool is_stateful;
   bool has_definition;
   std::function<std::vector<llvm::Value *> (
-      FunctionEnvironment &env, const std::vector<llvm::Value *> &)> make_compute_output;
+      FunctionEnvironment &env, const std::vector<llvm::Value *> &args, const Instance &inst
+      )> make_compute_output;
   std::function<void (
-      FunctionEnvironment &env, const std::vector<llvm::Value *> & )> make_update_state;
+      FunctionEnvironment &env, const std::vector<llvm::Value *> &args, const Instance &inst
+      )> make_update_state;
   std::function<void (ModuleEnvironment &env)> make_def;
 
   Primitive(bool is_stateful_,
             std::function<std::vector<llvm::Value *> (
-              FunctionEnvironment &, const std::vector<llvm::Value *> &
+              FunctionEnvironment &, const std::vector<llvm::Value *> &, const Instance &
               )> make_compute_output_,
             std::function<void(
-              FunctionEnvironment &,
-              const std::vector<llvm::Value *> &
+              FunctionEnvironment &, const std::vector<llvm::Value *> &, const Instance &
               )> make_update_state_,
             std::function<void(ModuleEnvironment &)> make_def_)
     : is_stateful(is_stateful_),
@@ -37,12 +40,10 @@ public:
   
   Primitive(bool is_stateful_,
             std::function<std::vector<llvm::Value *> (
-              FunctionEnvironment &,
-              const std::vector<llvm::Value *> &
+              FunctionEnvironment &, const std::vector<llvm::Value *> &, const Instance &
               )> make_compute_output_,
             std::function<void (
-              FunctionEnvironment &,
-              const std::vector<llvm::Value *> &
+              FunctionEnvironment &, const std::vector<llvm::Value *> &, const Instance &
               )> make_update_state_)
     : is_stateful(is_stateful_),
       has_definition(false),
@@ -53,8 +54,7 @@ public:
   }
 
   Primitive(std::function<std::vector<llvm::Value *> (
-        FunctionEnvironment &,
-        const std::vector<llvm::Value *> &
+        FunctionEnvironment &, const std::vector<llvm::Value *> &, const Instance &
         )> make_compute_output_)
     : is_stateful(false),
       has_definition(false),
