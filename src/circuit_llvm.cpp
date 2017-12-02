@@ -104,6 +104,8 @@ static llvm::Value * createSlice(llvm::Value *whole, int offset, int width, Func
   return env.getIRBuilder().CreateTrunc(cur, Type::getIntNTy(env.getContext(), width));
 }
 
+/* Builds a larger integer out of a list of smaller slices of other integers */
+
 static llvm::Value * makeValueReference(const Select &select, FunctionEnvironment &env)
 {
   if (select.isDirect()) {
@@ -113,7 +115,6 @@ static llvm::Value * makeValueReference(const Select &select, FunctionEnvironmen
       return ConstantInt::get(env.getContext(), const_int);
     }
     else {
-
       return env.lookupValue(slice.getValue());
     }
   } else {
@@ -132,12 +133,14 @@ static llvm::Value * makeValueReference(const Select &select, FunctionEnvironmen
       if (!acc) {
         acc = sliced_val;
       } else {
-        llvm::Value *src = env.getIRBuilder().CreateZExt(sliced_val, Type::getIntNTy(env.getContext(), total_width));
-        llvm::Value *dest = env.getIRBuilder().CreateZExt(acc, Type::getIntNTy(env.getContext(), total_width));
+        llvm::Value *src = env.getIRBuilder().CreateZExt(sliced_val, Type::getIntNTy(env.getContext(), total_width), "src");
+        llvm::Value *dest = env.getIRBuilder().CreateZExt(acc, Type::getIntNTy(env.getContext(), total_width), "dst");
+
+        //dest = env.getIRBuilder().CreateShl(dest, slice.getWidth());
 
         /* FIXME is this actually correct */
-        src = env.getIRBuilder().CreateShl(src, total_width - slice.getWidth());
-        dest = env.getIRBuilder().CreateOr(dest, src);
+        src = env.getIRBuilder().CreateShl(src, total_width - slice.getWidth(), "src_shift");
+        dest = env.getIRBuilder().CreateOr(dest, src, "concat");
 
         acc = dest;
       }

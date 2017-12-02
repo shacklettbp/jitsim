@@ -27,9 +27,6 @@ Primitive BuildReg(CoreIR::Module *mod)
       llvm::Value *input = args[0];
       llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[1], llvm::Type::getIntNPtrTy(env.getContext(), width));
       env.getIRBuilder().CreateStore(input, addr);
-    },
-    [&](auto &env)
-    {
     }
   );
 }
