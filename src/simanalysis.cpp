@@ -142,7 +142,7 @@ unsigned int SimInfo::calculateNumStateBytes() const
     if (isPrimitive()) {
       return getPrimitive().num_state_bytes;
     } else {
-      total_state_bytes += inst->getSimInfo().calculateNumStateBytes();
+      total_state_bytes += inst->getSimInfo().getNumStateBytes();
     }
   }
   return total_state_bytes;
