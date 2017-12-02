@@ -62,7 +62,7 @@ public:
   int getWidth() const { return width; }
   int getOffset() const { return offset; }
   bool isWhole() const { return offset == 0 && width == val->getWidth(); }
-  bool isConstant() const { return constant.has_source(); }
+  bool isConstant() const { return constant.has_value(); }
   bool isDefinitionAttached() const { return !!definition; }
   bool isInstanceAttached() const { return !!instance; }
 
@@ -101,7 +101,7 @@ public:
   Sink(const std::string &name_, int w)
     : name(name_), width(w), select() {}
 
-  bool isConnected() const { return select.has_source(); }
+  bool isConnected() const { return select.has_value(); }
   void connect(Select &&conn) { select = std::move(conn); }
 
   const Select & getSelect() const { return *select; }

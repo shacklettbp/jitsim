@@ -49,7 +49,7 @@ static IFace GenInterface(CoreIR::Module *core_mod)
     auto type = rpair.second;
     int width = type->getSize();
 
-    if (type->isSink()) {
+    if (type->isInput()) {
       if (isClock(type)) {
         clk_sources.emplace_back(name);
       } else {
@@ -152,7 +152,7 @@ static SourceSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &def
     bool found = false;
     vector<bool> new_const;
     for (auto& arg : const_inst->getModArgs()) {
-      if (arg.first == "source") {
+      if (arg.first == "value") {
         found = true;
         CoreIR::Value* val = arg.second;
         if (const_inst->getModuleRef()->getNamespace()->getName() == "coreir") {

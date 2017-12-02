@@ -39,7 +39,7 @@ std::vector<Type *> getArgTypes(const Definition &definition, ModuleEnvironment 
 
 std::string getComputeSourceName(const Definition &definition)
 {
-  return Twine(definition.getSafeName(), "_compute_sources").str();
+  return Twine(definition.getSafeName(), "_compute_outputs").str();
 }
 
 std::string getUpdateStateName(const Definition &definition)
@@ -175,7 +175,7 @@ static void makeInstanceComputeSource(const Instance *inst, const SimInfo &defn_
   std::vector<llvm::Value *> ret_values;
   if (info.isPrimitive()) {
     const Primitive &prim = info.getPrimitive();
-    ret_values = prim.make_compute_source(env, argument_values, *inst);
+    ret_values = prim.make_compute_output(env, argument_values, *inst);
   } else {
     std::string inst_comp_sources = getComputeSourceName(inst->getDefinition());
     Function *inst_func = env.getModule().getFunctionDecl(inst_comp_sources);
@@ -230,42 +230,42 @@ static void makeComputeSourceDefn(const Definition &definition, ModuleEnvironmen
   bool is_stateful = defn_info.isStateful();
 
   FunctionType *co_type = makeComputeSourceType(definition, mod_env);
-  FunctionEnvironment compute_sources = mod_env.makeFunction(getComputeSourceName(definition), co_type);
-  compute_sources.addBasicBlock("entry");
+  FunctionEnvironment compute_outputs = mod_env.makeFunction(getComputeSourceName(definition), co_type);
+  compute_outputs.addBasicBlock("entry");
 
   const std::vector<JITSim::Source> & sources = definition.getIFace().getSources();
-  auto arg = compute_sources.getFunction()->arg_begin();
+  auto arg = compute_outputs.getFunction()->arg_begin();
   if (!is_stateful) {
     for (unsigned i = 0; i < sources.size(); i++, arg++) {
       const JITSim::Source *src = &sources[i];
 
-      compute_sources.addSource(src, arg);
+      compute_outputs.addSource(src, arg);
       arg->setName("self." + src->getName());
     }
   }
 
   llvm::Value *state_ptr = nullptr;
   if (is_stateful) {
-    state_ptr = compute_sources.getFunction()->arg_end() - 1;
+    state_ptr = compute_outputs.getFunction()->arg_end() - 1;
     state_ptr->setName("state_ptr");
   }
 
-  const std::vector<const Instance *> &source_deps = defn_info.getSourceDeps();
-  for (const Instance *inst : source_deps) {
-    makeInstanceComputeSource(inst, defn_info, compute_sources, state_ptr);
+  const std::vector<const Instance *> &output_deps = defn_info.getOutputDeps();
+  for (const Instance *inst : output_deps) {
+    makeInstanceComputeSource(inst, defn_info, compute_outputs, state_ptr);
   }
 
   const std::vector<JITSim::Sink> & sinks = definition.getIFace().getSinks();
   llvm::Value *ret_val = UndefValue::get(co_type->getReturnType());
 
   for (unsigned i = 0; i < sinks.size(); i++ ) {
-    llvm::Value *ret_part = makeValueReference(sinks[i].getSelect(), compute_sources);
-    ret_val = compute_sources.getIRBuilder().CreateInsertValue(ret_val, ret_part, { i });
+    llvm::Value *ret_part = makeValueReference(sinks[i].getSelect(), compute_outputs);
+    ret_val = compute_outputs.getIRBuilder().CreateInsertValue(ret_val, ret_part, { i });
   }
 
-  compute_sources.getIRBuilder().CreateRet(ret_val);
+  compute_outputs.getIRBuilder().CreateRet(ret_val);
 
-  compute_sources.verify();
+  compute_outputs.verify();
 }
 
 static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment &mod_env)
