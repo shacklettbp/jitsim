@@ -19,7 +19,6 @@ ValueSlice::ValueSlice(const Definition *definition_, const Instance *instance_,
   : definition(definition_), instance(instance_),
     iface(definition ? &definition->getIFace() : &instance->getIFace()),
     val(val_), offset(offset_), width(width_),
-    is_whole(offset == 0 && width == val->getWidth()),
     constant()
 {}
 
@@ -37,7 +36,6 @@ llvm::APInt makeAPInt(const std::vector<bool> &constant)
 ValueSlice::ValueSlice(const std::vector<bool> &constant_)
   : definition(nullptr), instance(nullptr), iface(nullptr),
     val(nullptr), offset(0), width(constant_.size()),
-    is_whole(true),
     constant(makeAPInt(constant_))
 {}
 
@@ -85,7 +83,7 @@ void Select::compressSlices()
   slices = move(new_slices);
   if (slices.size() == 1) {
     has_many_slices = false;
-    if (slices[0].isWhole()) {
+    if (slices[0].isConstant() || slices[0].isWhole()) {
       direct_value = &slices[0];
     }
   }
@@ -225,7 +223,7 @@ string ValueSlice::repr() const
   } else {
     r << iface->getName() << "." << val->getName();
 
-    if (!is_whole) {
+    if (!isWhole()) {
       if (width > 1) {
         r << "[" << offset << ":" << getEndIdx() << "]";
       } else {

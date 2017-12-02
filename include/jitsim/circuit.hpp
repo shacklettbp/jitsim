@@ -44,7 +44,6 @@ private:
   const Value *val;
   int offset;
   int width;
-  bool is_whole;
   std::optional<llvm::APInt> constant;
 
 public:
@@ -57,11 +56,12 @@ public:
   const Instance * getInstance() const { return instance; }
   const IFace * getIFace() const { return iface; }
   const Value * getValue() const { return val; }
+  const llvm::APInt & getConstant() const { return *constant; }
 
   int getEndIdx() const { return offset + width; }
   int getWidth() const { return width; }
   int getOffset() const { return offset; }
-  bool isWhole() const { return is_whole; }
+  bool isWhole() const { return offset == 0 && width == val->getWidth(); }
   bool isConstant() const { return constant.has_value(); }
   bool isDefinitionAttached() const { return !!definition; }
   bool isInstanceAttached() const { return !!instance; }
@@ -87,7 +87,7 @@ public:
   const std::vector<ValueSlice> & getSlices() const { return slices; }
 
   bool isDirect() const { return direct_value != nullptr; }
-  const Value *getDirect() const { return direct_value->getValue(); }
+  const ValueSlice & getDirect() const { return *direct_value; }
 
   std::string repr() const;
 };

@@ -67,7 +67,7 @@ static FunctionType * makeComputeOutputsType(const Definition &definition, Modul
 
   std::vector<Type *> arg_types;
   if (!definition.getSimInfo().isStateful()) {
-      getArgTypes(definition, mod_env);
+      arg_types = getArgTypes(definition, mod_env);
   }
   StructType *ret_type = makeReturnType(definition, mod_env);
 
@@ -98,14 +98,26 @@ static llvm::Value * createSlice(llvm::Value *whole, int offset, int width, Func
 static llvm::Value * makeValueReference(const Select &select, FunctionEnvironment &env)
 {
   if (select.isDirect()) {
-    const JITSim::Value *source = select.getDirect();
-    return env.lookupValue(source);
+    const ValueSlice &slice = select.getDirect();
+    if (slice.isConstant()) {
+      const APInt &const_int = slice.getConstant();
+      return ConstantInt::get(env.getContext(), const_int);
+    }
+    else {
+
+      return env.lookupValue(slice.getValue());
+    }
   } else {
     llvm::Value *acc = nullptr;
     int total_width = 0;
     for (const ValueSlice &slice : select.getSlices()) {
-      llvm::Value *whole_val = env.lookupValue(slice.getValue());
-      llvm::Value *sliced_val = createSlice(whole_val, slice.getOffset(), slice.getWidth(), env);
+      llvm::Value *sliced_val;
+      if (slice.isConstant()) {
+        sliced_val = ConstantInt::get(env.getContext(), slice.getConstant());
+      } else {
+        llvm::Value *whole_val = env.lookupValue(slice.getValue());
+        sliced_val = createSlice(whole_val, slice.getOffset(), slice.getWidth(), env);
+      }
       total_width += slice.getWidth();
 
       if (!acc) {
@@ -172,8 +184,9 @@ static void makeComputeOutputsDefn(const Definition &definition, ModuleEnvironme
   compute_outputs.addBasicBlock("entry");
 
   int idx = 0;
+  const std::vector<JITSim::Value> & outputs = definition.getIFace().getOutputs();
   for (llvm::Value &arg : compute_outputs.getFunction()->args()) {
-    const JITSim::Value *val = &definition.getIFace().getOutputs()[idx];
+    const JITSim::Value *val = &outputs[idx];
 
     compute_outputs.addValue(val, &arg);
     arg.setName("self." + val->getName());

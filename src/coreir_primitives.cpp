@@ -12,8 +12,9 @@ Primitive BuildReg(CoreIR::Module *mod)
   return Primitive(true,
     [&](auto &env, auto &args)
     {
-      llvm::Value *addr = args[0];
-      llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
+      //llvm::Value *addr = args[0];
+      //llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
+      llvm::Value *output = llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 0, false));
 
       return std::vector<llvm::Value *> { output };
     },
