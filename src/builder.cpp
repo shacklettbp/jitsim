@@ -17,14 +17,14 @@ FunctionEnvironment::FunctionEnvironment(Function *func_, ModuleEnvironment *par
 {
 }
 
-llvm::Value * FunctionEnvironment::lookupValue(const JITSim::Value *lookup) const
+llvm::Value * FunctionEnvironment::lookupSource(const JITSim::Source *lookup) const
 {
-  return named_values.find(lookup)->second;
+  return named_sources.find(lookup)->second;
 }
 
-void FunctionEnvironment::addValue(const JITSim::Value *key, llvm::Value *val)
+void FunctionEnvironment::addSource(const JITSim::Source *key, llvm::Value *val)
 {
-  named_values[key] = val;
+  named_sources[key] = val;
 }
 
 BasicBlock * FunctionEnvironment::addBasicBlock(const std::string &name, bool setEntry)
