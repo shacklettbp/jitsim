@@ -189,6 +189,34 @@ static void makeInstanceComputeOutput(const Instance *inst, FunctionEnvironment 
   }
 }
 
+static void makeInstanceUpdateState(const Instance *inst, FunctionEnvironment &env, llvm::Value *state_ptr)
+{
+  const SimInfo &info = inst->getDefinition().getSimInfo();
+  const IFace &iface = inst->getIFace();
+
+  std::vector<llvm::Value *> argument_values;
+
+  for (const Input &input : iface.getInputs()) {
+    argument_values.push_back(makeValueReference(input.getSelect(), env));
+  }
+
+  argument_values.push_back(state_ptr);
+
+  std::vector<llvm::Value *> ret_values;
+  if (info.isPrimitive()) {
+    const Primitive &prim = info.getPrimitive();
+    prim.make_update_state(env, argument_values, *inst);
+  } else {
+    std::string inst_update_state = getUpdateStateName(inst->getDefinition());
+    Function *inst_func = env.getModule().getFunctionDecl(inst_update_state);
+    if (inst_func == nullptr) {
+      inst_func = env.getModule().makeFunctionDecl(inst_update_state, makeUpdateStateType(inst->getDefinition(), env.getModule()));
+    }
+
+    env.getIRBuilder().CreateCall(inst_func, argument_values);
+  }
+}
+
 static llvm::Value * incrementStatePtr(const Instance *inst, llvm::Value *cur_ptr, FunctionEnvironment &env)
 {
   const SimInfo &info = inst->getDefinition().getSimInfo();
@@ -253,13 +281,50 @@ static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironmen
 
 static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment &mod_env)
 {
-    FunctionType *us_type = makeUpdateStateType(definition, mod_env);
-    FunctionEnvironment update_state = mod_env.makeFunction(getUpdateStateName(definition), us_type);
-    update_state.addBasicBlock("entry");
+  const SimInfo &defn_info = definition.getSimInfo();
 
-    update_state.getIRBuilder().CreateRetVoid();
+  FunctionType *us_type = makeUpdateStateType(definition, mod_env);
+  FunctionEnvironment update_state = mod_env.makeFunction(getUpdateStateName(definition), us_type);
+  update_state.addBasicBlock("entry");
 
-    update_state.verify();
+  const std::vector<JITSim::Value> & outputs = definition.getIFace().getOutputs();
+  auto arg = update_state.getFunction()->arg_begin();
+
+  for (unsigned i = 0; i < outputs.size(); i++, arg++) {
+    const JITSim::Value *val = &outputs[i];
+
+    update_state.addValue(val, arg);
+    arg->setName("self." + val->getName());
+  }
+
+  llvm::Value *state_ptr = update_state.getFunction()->arg_end() - 1;
+  llvm::Value *orig_state_ptr = state_ptr;
+  state_ptr->setName("state_ptr");
+
+  const std::vector<const Instance *> &state_deps = defn_info.getStateDeps();
+  for (unsigned i = 0; i < state_deps.size(); i++) {
+    const Instance *inst = state_deps[i];
+    makeInstanceComputeOutput(inst, update_state, state_ptr);
+
+    if (i < state_deps.size() - 1) {
+      state_ptr = incrementStatePtr(inst, state_ptr, update_state);
+    }
+  }
+
+  state_ptr = orig_state_ptr;
+
+  const std::vector<const Instance *> &stateful_instances = defn_info.getStatefulInstances();
+  for (unsigned i = 0; i < stateful_instances.size(); i++) {
+    const Instance *inst = stateful_instances[i];
+    makeInstanceUpdateState(inst, update_state, state_ptr);
+
+    if (i < state_deps.size() - 1) {
+      state_ptr = incrementStatePtr(inst, state_ptr, update_state);
+    }
+  }
+
+  update_state.getIRBuilder().CreateRetVoid();
+  update_state.verify();
 }
 
 ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &definition)

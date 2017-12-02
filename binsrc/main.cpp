@@ -78,6 +78,12 @@ int main(int argc, char *argv[])
     cout << x << endl;
   }
 
+  cout << "State: ";
+  for (unsigned i = 0; i < state.size(); i++) {
+    cout << (int)state[i];
+  }
+  cout << endl;
+
   /* -------------------------- */
   
   // Remove all modules from the JIT.
