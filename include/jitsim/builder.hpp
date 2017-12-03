@@ -21,14 +21,14 @@ private:
   ModuleEnvironment *parent;
   llvm::LLVMContext *context;
 
-  std::unordered_map<const JITSim::Source *, llvm::Value *> named_sources; 
+  std::unordered_map<const Source *, llvm::Value *> value_lookup; 
   llvm::IRBuilder<> ir_builder;
 
 public:
   FunctionEnvironment(llvm::Function *func_, ModuleEnvironment *parent_);
 
-  llvm::Value * lookupSource(const JITSim::Source *) const;
-  void addSource(const JITSim::Source *, llvm::Value *val);
+  llvm::Value * lookupValue(const Source *) const;
+  void addValue(const Source *, llvm::Value *val);
 
   llvm::BasicBlock * addBasicBlock(const std::string &name, bool setEntry = true);
 
