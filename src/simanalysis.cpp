@@ -38,33 +38,38 @@ unordered_set<const Instance *> get_dependencies(unordered_set<const IFace *> fr
   return visited;
 }
 
-void topo_sort_instances(unordered_set<const Instance *> &unsorted, vector<const Instance *> &output)
+vector<const Source *> topo_sort_instances(unordered_set<const Instance *> &unsorted, vector<const Instance *> &output)
 {
   unordered_set<const Instance *> sorted;
+  unordered_set<const Source *> defn_deps;
 
   while (!unsorted.empty()) {
     bool found = false;
     for (const Instance *candidate : unsorted) {
+      const SimInfo &inst_siminfo = candidate->getDefinition().getSimInfo();
+      const InstanceIFace &inst_iface = candidate->getIFace();
       bool instance_satisfied = true;
-      if (!candidate->getSimInfo().isStateful()) {
-        for (const Sink &sink : candidate->getIFace().getSinks()) {
-          bool sink_satisfied = true;
+      for (const Source *defn_source : inst_siminfo.getOutputSources()) {
+        const Sink *inst_sink = inst_iface.getSink(defn_source);
+        bool sink_satisfied = true;
 
-          const Select &sel = sink.getSelect();
-          for (const SourceSlice &slice : sel.getSlices()) {
-            if (slice.isConstant() || slice.isDefinitionAttached()) {
-              continue;
-            }
+        const Select &sel = inst_sink->getSelect();
+        for (const SourceSlice &slice : sel.getSlices()) {
+          if (slice.isConstant()) {
+            continue;
+          } else if (slice.isDefinitionAttached()) {
+            defn_deps.insert(slice.getSource());
+          } else {
             const Instance *depinst = slice.getInstance();
             if (sorted.count(depinst) == 0) {
               sink_satisfied = false;
               break;
             }
           }
-          if (!sink_satisfied) {
-            instance_satisfied = false;
-            break;
-          }
+        }
+        if (!sink_satisfied) {
+          instance_satisfied = false;
+          break;
         }
       }
 
@@ -78,6 +83,14 @@ void topo_sort_instances(unordered_set<const Instance *> &unsorted, vector<const
     }
     assert(found);
   }
+
+  vector<const Source *> ret;
+
+  for (const Source *src : defn_deps) {
+    ret.push_back(src);
+  }
+
+  return ret;
 }
 
 bool order_instances(const IFace &interface,
@@ -103,25 +116,24 @@ bool order_instances(const IFace &interface,
   unordered_set<const Instance *> visited_state_deps = get_dependencies(frontier);
   topo_sort_instances(visited_state_deps, state_deps);
 
-  frontier.clear();
-  frontier.insert(&interface);
-
-  unordered_set<const Instance *> visited_output_deps = get_dependencies(frontier);
+  unordered_set<const Instance *> visited_output_deps = get_dependencies({&interface});
   topo_sort_instances(visited_output_deps, output_deps);
 
   return stateful;
 }
 
-SimInfo::SimInfo(const IFace &interface, const vector<Instance> &instances)
+SimInfo::SimInfo(const IFace &defn_iface, const vector<Instance> &instances)
   : state_deps(),
     output_deps(),
     stateful_insts(),
     offset_map(),
     primitive(),
     is_stateful(false),
-    num_state_bytes(0)
+    num_state_bytes(0),
+    stateful_sources(),
+    output_sources()
 {
-  is_stateful = order_instances(interface, instances, state_deps, output_deps, stateful_insts);
+  is_stateful = order_instances(defn_iface, instances, state_deps, output_deps, stateful_insts);
 
   unsigned offset = 0;
   for (const Instance *inst : stateful_insts) {
@@ -138,7 +150,9 @@ SimInfo::SimInfo(const Primitive &primitive_)
     stateful_insts(),
     primitive(primitive_),
     is_stateful(primitive->is_stateful),
-    num_state_bytes(primitive->num_state_bytes)
+    num_state_bytes(primitive->num_state_bytes),
+    stateful_sources(),
+    output_sources()
 {
 }
 

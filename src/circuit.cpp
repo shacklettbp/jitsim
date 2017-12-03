@@ -113,31 +113,85 @@ IFace::IFace(const string &name_,
   }
 }
 
-const Source * IFace::getSource(const std::string &name) const
+const Source * IFace::getSource(const string &name) const
 {
   return source_lookup.find(name)->second;
 }
 
-Source * IFace::getSource(const std::string &name)
+Source * IFace::getSource(const string &name)
 {
   return source_lookup.find(name)->second;
 }
 
-const Sink * IFace::getSink(const std::string &name) const
+const Sink * IFace::getSink(const string &name) const
 {
   return sink_lookup.find(name)->second;
 }
 
-Sink * IFace::getSink(const std::string &name)
+Sink * IFace::getSink(const string &name)
 {
   return sink_lookup.find(name)->second;
+}
+
+static vector<Sink> flipSources(const IFace &orig)
+{
+  vector<Sink> sinks;
+
+  for (const Source &val : orig.getSources()) {
+    sinks.emplace_back(val.getName(), val.getWidth());
+  }
+
+  return sinks;
+}
+
+static vector<Source> flipSinks(const IFace &orig)
+{
+  vector<Source> sources;
+
+  for (const Sink &sink : orig.getSinks()) {
+    sources.emplace_back(sink.getName(), sink.getWidth());
+  }
+
+  return sources;
+}
+
+static vector<ClkSink> flipClkSources(const IFace &orig)
+{
+  vector<ClkSink> clk_sinks;
+
+  for (const ClkSource &val : orig.getClkSources()) {
+    clk_sinks.emplace_back(val.getName(), nullptr);
+  }
+
+  return clk_sinks;
+}
+
+static vector<ClkSource> flipClkSinks(const IFace &orig)
+{
+  vector<ClkSource> clk_sources;
+
+  for (const ClkSink &sink : orig.getClkSinks()) {
+    clk_sources.emplace_back(sink.getName());
+  }
+
+  return clk_sources;
+}
+
+InstanceIFace::InstanceIFace(const string &name_, const IFace &defn_iface)
+  : IFace(name_, flipSources(defn_iface), flipSinks(defn_iface), flipClkSources(defn_iface), flipClkSinks(defn_iface), false),
+    defn_source_to_sink()
+{
+  const vector<Source> &sources = defn_iface.getSources();
+  const vector<Sink> &sinks = getSinks();
+  for (unsigned i = 0; i < sinks.size(); i++) {
+    defn_source_to_sink.insert(make_pair(&sources[i], &sinks[i]));
+  }
 }
 
 Instance::Instance(const string &name_,
-                   IFace &&iface_,
                    const Definition *defn_)
   : name(name_),
-    interface(move(iface_)),
+    interface(name_, defn_->getIFace()),
     defn(defn_)
 {
 }
@@ -190,28 +244,7 @@ Definition::Definition(const string &name_,
 
 Instance Definition::makeInstance(const string &name) const
 {
-  vector<Sink> sinks;
-  vector<Source> sources;
-  vector<ClkSink> clk_sinks;
-  vector<ClkSource> clk_sources;
-
-  for (const Sink &sink : interface.getSinks()) {
-    sources.emplace_back(sink.getName(), sink.getWidth());
-  }
-
-  for (const Source &val  : interface.getSources()) {
-    sinks.emplace_back(val.getName(), val.getWidth());
-  }
-
-  for (const ClkSink &sink : interface.getClkSinks()) {
-    clk_sources.emplace_back(sink.getName());
-  }
-
-  for (const ClkSource &val : interface.getClkSources()) {
-    clk_sinks.emplace_back(val.getName(), nullptr);
-  }
-
-  return Instance(name, IFace(name, move(sinks), move(sources), move(clk_sinks), move(clk_sources), false), this);
+  return Instance(name, this);
 }
 
 string SourceSlice::repr() const

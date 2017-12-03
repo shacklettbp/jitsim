@@ -21,7 +21,6 @@ namespace JITSim {
 class IFace;
 class Definition;
 class Instance;
-class SourceSlice;
 
 class Source {
 private:
@@ -31,6 +30,9 @@ public:
   Source(const std::string &name_, int w)
     : name(name_), width(w)
   {}
+
+  Source(const Source &) = delete;
+  Source(Source &&) = default;
 
   const std::string & getName() const { return name; }
   int getWidth() const { return width; }
@@ -101,6 +103,9 @@ public:
   Sink(const std::string &name_, int w)
     : name(name_), width(w), select() {}
 
+  Sink(const Sink &) = delete;
+  Sink(Sink &&) = default;
+
   bool isConnected() const { return select.has_value(); }
   void connect(Select &&conn) { select = std::move(conn); }
 
@@ -109,7 +114,6 @@ public:
   const std::string & getName() const { return name; }
   int getWidth() const { return width; }
 };
-
 
 class ClkSource {
 private:
@@ -179,18 +183,30 @@ public:
   bool isInstance() const { return !is_definition; }
 };
 
+class InstanceIFace : public IFace {
+private:
+  std::unordered_map<const Source *, const Sink *> defn_source_to_sink;
+
+public:
+  InstanceIFace(const std::string &name_, const IFace &defn_iface);
+
+  const Sink * getSink(const Source *src) const 
+  {
+    return defn_source_to_sink.find(src)->second;
+  }
+};
+
 class Instance {
 private:
   std::string name;
-  IFace interface;
+  InstanceIFace interface;
   const Definition *defn;
 public:
   Instance(const std::string &name_, 
-           IFace &&interface,
            const Definition *defn);
 
-  IFace & getIFace() { return interface; }
-  const IFace & getIFace() const { return interface; }
+  InstanceIFace & getIFace() { return interface; }
+  const InstanceIFace & getIFace() const { return interface; }
   const SimInfo & getSimInfo() const;
   const Definition & getDefinition() const { return *defn; }
   const std::string & getName() const { return name; }
