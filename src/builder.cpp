@@ -78,5 +78,29 @@ ModuleEnvironment Builder::makeModule(const std::string &name)
 
   return ModuleEnvironment(move(module), &context);
 }
+
+bool FunctionEnvironment::verify() const
+{
+  bool faulty = verifyFunction(*func, &llvm::errs());
+  if (!faulty) {
+    return false;
+  }
+
+  llvm::errs() << *func;
+
+  return true;
+}
+
+bool ModuleEnvironment::verify() const 
+{
+  bool faulty = verifyModule(*module, &llvm::errs());
+  if (!faulty) {
+    return false;
+  }
+
+  llvm::errs() << *module;
+
+  return true;
+}
   
 } // end namespace JITSim

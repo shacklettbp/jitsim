@@ -260,7 +260,7 @@ static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironmen
 
   compute_output.getIRBuilder().CreateRet(ret_val);
 
-  compute_output.verify();
+  assert(!compute_output.verify());
 }
 
 static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment &mod_env)
@@ -294,7 +294,7 @@ static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment 
   }
 
   update_state.getIRBuilder().CreateRetVoid();
-  update_state.verify();
+  assert(!update_state.verify());
 }
 
 ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &definition)
@@ -311,6 +311,8 @@ ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &defini
   if (siminfo.isStateful()) {
     makeUpdateStateDefn(definition, mod_env);
   }
+
+  assert(!mod_env.verify());
 
   return mod_env;
 }

@@ -10,6 +10,9 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <iostream>
+#include <unordered_map>
+
 namespace JITSim {
 
 class Source;
@@ -37,7 +40,7 @@ public:
   llvm::LLVMContext & getContext() { return *context; }
   llvm::IRBuilder<> & getIRBuilder() { return ir_builder; }
 
-  void verify() { llvm::verifyFunction(*func); }
+  bool verify() const;
 };
 
 class ModuleEnvironment {
@@ -59,6 +62,8 @@ public:
 
   std::unique_ptr<llvm::Module> returnModule() { return move(module); }
   std::string getIRStr() const;
+
+  bool verify() const;
 };
 
 class Builder {

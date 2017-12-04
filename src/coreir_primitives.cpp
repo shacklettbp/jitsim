@@ -9,6 +9,13 @@ namespace JITSim {
 
 using namespace std;
 
+int getNumBytes(int bits) {
+  if (bits % sizeof(char) == 0) {
+    return bits / sizeof(char);
+  } else {
+    return bits / sizeof(char) + 1;
+  }
+}
 
 Primitive BuildReg(CoreIR::Module *mod)
 {
@@ -19,7 +26,7 @@ Primitive BuildReg(CoreIR::Module *mod)
     }
   }
 
-  return Primitive(true, width,
+  return Primitive(true, getNumBytes(width),
     { "in" }, {},
     [width](auto &env, auto &args, auto &inst)
     {
@@ -127,7 +134,7 @@ Primitive BuildMem(CoreIR::Module *mod)
     }
   }
 
-  return Primitive(true, width*depth,
+  return Primitive(true, getNumBytes(width*depth),
     { "waddr", "wdata", "wen" }, { "raddr" },
     [width](auto &env, auto &args, auto &inst)
     {
@@ -159,16 +166,16 @@ Primitive BuildMem(CoreIR::Module *mod)
                                         llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 1)),
                                         "ifcond");
 
-      llvm::BasicBlock *then_bb = env.addBasicBlock("then");
-      llvm::BasicBlock *else_bb = env.addBasicBlock("else");
+      llvm::BasicBlock *then_bb = env.addBasicBlock("then", false);
+      llvm::BasicBlock *else_bb = env.addBasicBlock("else", false);
 
       env.getIRBuilder().CreateCondBr(if_cond, then_bb, else_bb);
 
       // Emit then block.
       env.getIRBuilder().SetInsertPoint(then_bb);
       env.getIRBuilder().CreateStore(wdata, addr);
-
       env.getIRBuilder().CreateBr(else_bb);
+
       env.getIRBuilder().SetInsertPoint(else_bb);
     }
   );
