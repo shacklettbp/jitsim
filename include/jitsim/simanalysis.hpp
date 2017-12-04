@@ -16,21 +16,25 @@ class IFace;
 class SimInfo
 {
 private:
+  std::vector<const Instance *> stateful_insts;
   std::vector<const Instance *> state_deps;
   std::vector<const Instance *> output_deps;
-  std::vector<const Instance *> stateful_insts;
   std::unordered_map<const Instance *, unsigned> offset_map;
   std::optional<Primitive> primitive;
 
   bool is_stateful;
   unsigned int num_state_bytes;
 
-  std::unordered_set<const Source *> stateful_sources; /* These sources are driven by a register */
-  std::vector<const Source *> output_sources; /* These input sources are directly necessary to compute the output */
+  std::vector<const Source *> state_dep_srcs; /* These input sources are directly necessary to update the state */
+  std::vector<const Source *> output_dep_srcs; /* These input sources are directly necessary to compute the output */
+
+  void calculateStateOffsets();
+  void analyzeStateDeps(const IFace &);
+  void analyzeOutputDeps(const IFace &);
 
 public:
-  SimInfo(const IFace &interface, const std::vector<Instance> &instances);
-  SimInfo(const Primitive &primitive);
+  SimInfo(const IFace &defn_iface, const std::vector<Instance> &instances);
+  SimInfo(const IFace &defn_iface, const Primitive &primitive);
 
   std::vector<uint8_t> allocateState() const;
 
@@ -40,7 +44,8 @@ public:
   const std::vector<const Instance *> & getStateDeps() const { return state_deps; }
   const std::vector<const Instance *> & getOutputDeps() const { return output_deps; }
   const std::vector<const Instance *> & getStatefulInstances() const { return stateful_insts; }
-  const std::vector<const Source *> & getOutputSources() const { return output_sources; }
+  const std::vector<const Source *> & getStateSources() const { return state_dep_srcs; }
+  const std::vector<const Source *> & getOutputSources() const { return output_dep_srcs; }
 
   unsigned getOffset(const Instance *inst) const { return offset_map.find(inst)->second; }
 

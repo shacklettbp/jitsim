@@ -68,12 +68,12 @@ int main(int argc, char *argv[])
 
   const Definition &top = circuit.getTopDefinition();
   void (*update_state)(uint8_t *) = (void (*)(uint8_t *))jit.getSymbolAddress(top.getSafeName() + "_update_state");
-  int (*compute_outputs)(uint8_t *) = (int (*)(uint8_t *))jit.getSymbolAddress(top.getSafeName() + "_compute_outputs");
-  assert(update_state && compute_outputs);
+  int (*compute_output)(uint8_t *) = (int (*)(uint8_t *))jit.getSymbolAddress(top.getSafeName() + "_compute_output");
+  assert(update_state && compute_output);
 
   vector<uint8_t> state = top.getSimInfo().allocateState();
   for (unsigned i = 0; i < 30; i++) {
-    int x = compute_outputs(state.data());
+    int x = compute_output(state.data());
     update_state(state.data());
     cout << x << endl;
   }

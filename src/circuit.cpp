@@ -237,7 +237,7 @@ Definition::Definition(const string &name_,
   : name(name_),
     interface(move(iface)),
     instances(),
-    siminfo(primitive)
+    siminfo(interface, primitive)
 {
 }
 
@@ -294,18 +294,18 @@ string Select::repr() const
 void IFace::print(const string &prefix) const 
 {
   if (is_definition) {
-    cout << prefix << "Sinks:\n";
+    cout << prefix << "Inputs:\n";
   } else {
-    cout << prefix << "Sources:\n";
+    cout << prefix << "Outputs:\n";
   }
   for (const Source &source : sources) {
     cout << prefix << "  " << source.getName() << ": " << source.getWidth() << endl;
   }
 
   if (is_definition) {
-    cout << prefix << "Sources:\n";
+    cout << prefix << "Outputs:\n";
   } else {
-    cout << prefix << "Sinks:\n";
+    cout << prefix << "Inputs:\n";
   }
   for (const Sink &sink : sinks) {
     cout << prefix << "  " << sink.getName() << ": " << sink.getWidth() << endl;
