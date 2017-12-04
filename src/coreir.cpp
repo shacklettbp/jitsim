@@ -24,6 +24,11 @@ static bool isConstantModule(CoreIR::Module *mod)
          (mod->getNamespace()->getName() == "coreir" && mod->getName() == "const");
 }
 
+static bool isTermModule(CoreIR::Module *mod)
+{
+  return mod->getNamespace()->getName() == "corebit" && mod->getName() == "term";
+}
+
 static bool isClock(CoreIR::Type *type)
 {
   if (type->getKind() != CoreIR::Type::TK_Named) {
@@ -82,7 +87,7 @@ GenInstances(CoreIR::ModuleDef *core_def,
     auto coreinst = coreinst_p.second;
     auto coreinst_mod = coreinst->getModuleRef();
 
-    if (isConstantModule(coreinst_mod)) {
+    if (isConstantModule(coreinst_mod) || isTermModule(coreinst_mod)) {
       continue;
     }
 
@@ -103,7 +108,7 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
                              unordered_map<CoreIR::Module *, const Definition *> &mod_map,
                              deque<Definition> &definitions)
 {
-  if (isConstantModule(core_mod)) {
+  if (isConstantModule(core_mod) || isTermModule(core_mod)) {
     /* Don't process consts as normal modules */
     return;
   }
@@ -117,6 +122,17 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
 
   definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(), move(interface), prim);
   mod_map[core_mod] = &definitions.back();
+}
+
+static bool isTermWireable(CoreIR::Wireable *w)
+{
+  if (w->getKind() != CoreIR::Wireable::WK_Instance) {
+    return false;
+  }
+
+  CoreIR::Instance *inst = static_cast<CoreIR::Instance *>(w);
+  CoreIR::Module *mod = inst->getModuleRef();
+  return isTermModule(mod);
 }
 
 static bool isConstantWireable(CoreIR::Wireable *w)
@@ -228,7 +244,7 @@ static void SetupModuleConnections(CoreIR::ModuleDef *core_def, Definition &defn
 
   for (auto inst_p : core_def->getInstances()) {
     CoreIR::Instance *coreinst = inst_p.second;
-    if (isConstantWireable(coreinst)) {
+    if (isConstantWireable(coreinst) || isTermWireable(coreinst)) {
       continue;
     }
 
