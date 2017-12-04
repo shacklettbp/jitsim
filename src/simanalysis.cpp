@@ -129,8 +129,6 @@ static void analyzeDependencies(const IFace &defn_iface,
     }
   }
 
-  cout << "dep_src_set " << dep_src_set.size() << endl;
-
   /* Preserve ordering of sources */
   for (const Source &src : defn_iface.getSources()) {
     if (dep_src_set.count(&src) > 0) {
