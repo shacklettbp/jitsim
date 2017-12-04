@@ -94,31 +94,16 @@ Primitive BuildMux(CoreIR::Module *mod)
       llvm::Value *lhs = args[0];
       llvm::Value *rhs = args[1];
       llvm::Value *sel = args[2];
-      //llvm::Function *fn = env.getIRBuilder().GetInsertBlock()->getParent();
 
-      llvm::Value *cond = env.getIRBuilder().CreateICmpEQ(sel,
-                                      llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 0)),
-                                      "ifcond");
+      llvm::Value *if_cond =
+        env.getIRBuilder().CreateICmpEQ(sel,
+                                        llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 0)),
+                                        "ifcond");
 
-      //llvm::Value *cond = env.getIRBuilder().CreateFCmpONE(..,
-      //                                                     ConstantInt::get(context, APInt(0)),
-      //                                                     "ifcond");
-      llvm::BasicBlock *if_bb = env.addBasicBlock("if_block");
-      llvm::BasicBlock *else_bb = env.addBasicBlock("else_block");
-      llvm::BasicBlock *cont_bb = env.addBasicBlock("cont_block");
+      llvm::Value *result =
+        env.getIRBuilder().CreateSelect(if_cond, lhs, rhs, "result");
 
-
-      (void)lhs;
-      (void)rhs;
-      (void)sel;
-      (void)cond;
-      (void)if_bb;
-      (void)else_bb;
-      (void)cont_bb;
-
-      // if sel == [0] then sum = lhs
-      // else sum = rhs
-      return std::vector<llvm::Value *> ();
+      return std::vector<llvm::Value *> { result };
     }
   );
 }      
