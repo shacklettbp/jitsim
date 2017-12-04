@@ -12,7 +12,7 @@ using namespace std;
 Primitive BuildReg(CoreIR::Module *mod)
 {
   return Primitive(true, 1,
-    [&](auto &env, auto &args, auto &inst)
+    [](auto &env, auto &args, auto &inst)
     {
       int width = inst.getIFace().getSources()[0].getWidth();
       llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[0], llvm::Type::getIntNPtrTy(env.getContext(), width));
@@ -20,7 +20,7 @@ Primitive BuildReg(CoreIR::Module *mod)
 
       return std::vector<llvm::Value *> { output };
     },
-    [&](auto &env, auto &args, auto &inst)
+    [](auto &env, auto &args, auto &inst)
     {
       int width = inst.getIFace().getSources()[0].getWidth();
 
@@ -34,7 +34,7 @@ Primitive BuildReg(CoreIR::Module *mod)
 Primitive BuildAdd(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args, auto &inst)
+    [](auto &env, auto &args, auto &inst)
     {
       llvm::Value *lhs = args[0];
       llvm::Value *rhs = args[1];
@@ -48,7 +48,7 @@ Primitive BuildAdd(CoreIR::Module *mod)
 Primitive BuildMul(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args, auto &inst)
+    [](auto &env, auto &args, auto &inst)
     {
       llvm::Value *lhs = args[0];
       llvm::Value *rhs = args[1];
@@ -62,7 +62,7 @@ Primitive BuildMul(CoreIR::Module *mod)
 Primitive BuildEq(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args, auto &inst)
+    [](auto &env, auto &args, auto &inst)
     {
       llvm::Value *lhs = args[0];
       llvm::Value *rhs = args[1];
@@ -76,7 +76,7 @@ Primitive BuildEq(CoreIR::Module *mod)
 Primitive BuildNeq(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args, auto &inst)
+    [](auto &env, auto &args, auto &inst)
     {
       llvm::Value *lhs = args[0];
       llvm::Value *rhs = args[1];
@@ -89,7 +89,7 @@ Primitive BuildNeq(CoreIR::Module *mod)
 Primitive BuildMux(CoreIR::Module *mod)
 {
   return Primitive(
-    [&](auto &env, auto &args, auto &inst)
+    [](auto &env, auto &args, auto &inst)
     {
       llvm::Value *lhs = args[0];
       llvm::Value *rhs = args[1];
@@ -110,10 +110,48 @@ Primitive BuildMux(CoreIR::Module *mod)
       
 Primitive BuildMem(CoreIR::Module *mod)
 {
-  return Primitive(
-    [&](auto &env, auto &args, auto &inst)
+  unsigned width = 0; // FIXME: need to calculate
+  return Primitive(true, 1, // FIXME: set these
+    [=](auto &env, auto &args, auto &inst)
     {
-      return std::vector<llvm::Value *> ();
+      llvm::Value *raddr = args[0];
+      llvm::Value *state_addr = args[1];
+
+      llvm::Value *cast_addr = 
+        env.getIRBuilder().CreateBitCast(state_addr,
+                                         llvm::Type::getIntNPtrTy(env.getContext(), width));
+      llvm::Value *addr = env.getIRBuilder().CreateGEP(cast_addr, raddr, "addr");
+      llvm::Value *rdata = env.getIRBuilder().CreateLoad(addr, "rdata");
+      
+      return std::vector<llvm::Value *> { rdata };
+    },
+    [=](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *waddr = args[0];
+      llvm::Value *wdata = args[1];
+      llvm::Value *wen = args[2];
+      llvm::Value *state_addr = args[3];
+
+      llvm::Value *cast_addr = 
+        env.getIRBuilder().CreateBitCast(state_addr,
+                                         llvm::Type::getIntNPtrTy(env.getContext(), width));
+      llvm::Value *addr = env.getIRBuilder().CreateGEP(cast_addr, waddr, "addr");
+
+      llvm::Value *if_cond =
+        env.getIRBuilder().CreateICmpEQ(wen,
+                                        llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 1)),
+                                        "ifcond");
+
+      llvm::BasicBlock *then_bb = env.addBasicBlock("then");
+      llvm::BasicBlock *else_bb = env.addBasicBlock("else");
+
+      env.getIRBuilder().CreateCondBr(if_cond, then_bb, else_bb);
+
+      // Emit then block.
+      env.getIRBuilder().SetInsertPoint(then_bb);
+      env.getIRBuilder().CreateStore(wdata, addr);
+      env.getIRBuilder().CreateBr(else_bb);
+      then_bb = env.getIRBuilder().GetInsertBlock();
     }
   );
 }      
