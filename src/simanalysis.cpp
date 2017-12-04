@@ -201,7 +201,13 @@ SimInfo::SimInfo(const IFace &defn_iface, const Primitive &primitive_)
 {
   if (is_stateful) {
     for (const Source &src : defn_iface.getSources()) {
-      state_dep_srcs.push_back(&src);
+      if (primitive->state_deps.count(src.getName()) > 0) {
+        state_dep_srcs.push_back(&src);
+      } else if (primitive->output_deps.count(src.getName()) > 0) {
+        output_dep_srcs.push_back(&src);
+      } else {
+        assert(false);
+      }
     }
   } else {
     for (const Source &src : defn_iface.getSources()) {

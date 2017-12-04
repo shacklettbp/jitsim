@@ -20,6 +20,7 @@ Primitive BuildReg(CoreIR::Module *mod)
   }
 
   return Primitive(true, width,
+    { "in" }, {},
     [width](auto &env, auto &args, auto &inst)
     {
       llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[0], llvm::Type::getIntNPtrTy(env.getContext(), width));
@@ -127,6 +128,7 @@ Primitive BuildMem(CoreIR::Module *mod)
   }
 
   return Primitive(true, width*depth,
+    { "waddr", "wdata", "wen" }, { "raddr" },
     [width](auto &env, auto &args, auto &inst)
     {
       llvm::Value *raddr = args[0];

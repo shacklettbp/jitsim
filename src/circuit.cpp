@@ -335,24 +335,24 @@ void Definition::print(const string &prefix) const
   cout << prefix << "  Interface:\n";
   interface.print("    ");
 
-  if (instances.size() == 0) {
+  if (getSimInfo().isPrimitive()) {
     // FIXME print something for primitives
-    return;
-  }
-  cout << prefix << "  Instances:\n";
+  } else {
+    cout << prefix << "  Instances:\n";
 
-  for (const Instance &inst : instances) {
-    inst.print(prefix + "    ");
-  }
+    for (const Instance &inst : instances) {
+      inst.print(prefix + "    ");
+    }
 
-  cout << prefix << "  Connectivity:\n";
-  for (const Instance &inst : instances) {
-    cout << prefix << "    " << inst.getName() << ":\n";
-    const IFace &iface = inst.getIFace();
-    iface.print_connectivity(prefix + "      ");
+    cout << prefix << "  Connectivity:\n";
+    for (const Instance &inst : instances) {
+      cout << prefix << "    " << inst.getName() << ":\n";
+      const IFace &iface = inst.getIFace();
+      iface.print_connectivity(prefix + "      ");
+    }
+    cout << prefix << "    self:\n";
+    interface.print_connectivity(prefix + "      ");
   }
-  cout << prefix << "    self:\n";
-  interface.print_connectivity(prefix + "      ");
 
   cout << prefix << "  Simulation Information:\n";
   siminfo.print(prefix + "    ");

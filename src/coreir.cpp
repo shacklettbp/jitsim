@@ -113,12 +113,9 @@ static void ProcessPrimitive(CoreIR::Module *core_mod,
     return;
   }
 
-  Primitive prim = BuildCoreIRPrimitive(core_mod);
-
-  vector<Sink> sinks;
-  vector<Source> sources;
-
   auto interface = GenInterface(core_mod);
+
+  Primitive prim = BuildCoreIRPrimitive(core_mod);
 
   definitions.emplace_back(core_mod->getNamespace()->getName()+"."+core_mod->getName(), move(interface), prim);
   mod_map[core_mod] = &definitions.back();
