@@ -223,6 +223,7 @@ vector<uint8_t> SimInfo::allocateState() const
 
 void SimInfo::print(const string &prefix) const
 {
+  cout << prefix << "Bytes for state: " << num_state_bytes << endl;
   cout << prefix << "Stateful instances:\n";
   for (const Instance *inst : stateful_insts) {
     cout << prefix << "  " << inst->getName() << endl;

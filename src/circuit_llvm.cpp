@@ -146,7 +146,11 @@ static Value * makeValueReference(const Select &select, FunctionEnvironment &env
 
 static Value * incrementStatePtr(Value *cur_ptr, int incr, FunctionEnvironment &env)
 {
-  return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), APInt(64, incr, false)));
+  if (incr == 0) {
+    return cur_ptr;
+  } else {
+    return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), APInt(64, incr, false)));
+  }
 }
 
 static void makeInstanceComputeOutput(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, Value *base_state)

@@ -6,8 +6,11 @@ LDFLAGS = -fPIC
 ifdef SIMOPT
 CXXFLAGS += -O2 -march=native
 else
-CXXFLAGS += -O0 -g -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
+CXXFLAGS += -O0 -g
+ifndef NOASAN
+CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
 LDFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
+endif
 endif
 
 CXXFLAGS += -Iinclude
