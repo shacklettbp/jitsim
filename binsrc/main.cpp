@@ -8,6 +8,7 @@
 #include <jitsim/circuit_llvm.hpp>
 #include <jitsim/coreir.hpp>
 #include <coreir/ir/context.h>
+#include <coreir/libs/commonlib.h>
 #include <jitsim/builder_hardcoded.hpp>
 
 using namespace std;
@@ -17,6 +18,7 @@ JITSim::Circuit loadJSON(const string &str)
   using namespace CoreIR;
 
   Context *ctx = newContext();
+  CoreIRLoadLibrary_commonlib(ctx);
 
   Module* top;
   if (!loadFromFile(ctx, str, &top)) {
