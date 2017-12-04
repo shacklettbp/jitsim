@@ -1,6 +1,7 @@
 #include "coreir_primitives.hpp"
 
 #include <coreir/ir/namespace.h>
+#include <coreir/ir/value.h>
 
 #include <jitsim/circuit.hpp>
 
@@ -11,19 +12,23 @@ using namespace std;
 
 Primitive BuildReg(CoreIR::Module *mod)
 {
-  return Primitive(true, 1,
-    [](auto &env, auto &args, auto &inst)
+  int width = 0;
+  for (const auto & val : mod->getGenArgs()) {
+    if (val.first == "width") {
+      width = val.second->get<int>();
+    }
+  }
+
+  return Primitive(true, width,
+    [width](auto &env, auto &args, auto &inst)
     {
-      int width = inst.getIFace().getSources()[0].getWidth();
       llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[0], llvm::Type::getIntNPtrTy(env.getContext(), width));
       llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
 
       return std::vector<llvm::Value *> { output };
     },
-    [](auto &env, auto &args, auto &inst)
+    [width](auto &env, auto &args, auto &inst)
     {
-      int width = inst.getIFace().getSources()[0].getWidth();
-
       llvm::Value *input = args[0];
       llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[1], llvm::Type::getIntNPtrTy(env.getContext(), width));
       env.getIRBuilder().CreateStore(input, addr);
@@ -110,9 +115,19 @@ Primitive BuildMux(CoreIR::Module *mod)
       
 Primitive BuildMem(CoreIR::Module *mod)
 {
-  unsigned width = 0; // FIXME: need to calculate
-  return Primitive(true, 1, // FIXME: set these
-    [=](auto &env, auto &args, auto &inst)
+  int width = 0; 
+  int depth = 0;
+
+  for (const auto & val : mod->getGenArgs()) {
+    if (val.first == "width") {
+      width = val.second->get<int>();
+    } else if (val.first == "depth") {
+      depth = val.second->get<int>();
+    }
+  }
+
+  return Primitive(true, width*depth,
+    [width](auto &env, auto &args, auto &inst)
     {
       llvm::Value *raddr = args[0];
       llvm::Value *state_addr = args[1];
@@ -125,7 +140,7 @@ Primitive BuildMem(CoreIR::Module *mod)
       
       return std::vector<llvm::Value *> { rdata };
     },
-    [=](auto &env, auto &args, auto &inst)
+    [width](auto &env, auto &args, auto &inst)
     {
       llvm::Value *waddr = args[0];
       llvm::Value *wdata = args[1];
@@ -150,8 +165,9 @@ Primitive BuildMem(CoreIR::Module *mod)
       // Emit then block.
       env.getIRBuilder().SetInsertPoint(then_bb);
       env.getIRBuilder().CreateStore(wdata, addr);
+
       env.getIRBuilder().CreateBr(else_bb);
-      then_bb = env.getIRBuilder().GetInsertBlock();
+      env.getIRBuilder().SetInsertPoint(else_bb);
     }
   );
 }      
