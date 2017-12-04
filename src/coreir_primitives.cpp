@@ -36,9 +36,9 @@ Primitive BuildAdd(CoreIR::Module *mod)
   return Primitive(
     [&](auto &env, auto &args, auto &inst)
     {
-      llvm::Value *first = args[0];
-      llvm::Value *second = args[1];
-      llvm::Value *sum = env.getIRBuilder().CreateAdd(first, second, "sum");
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *sum = env.getIRBuilder().CreateAdd(lhs, rhs, "sum");
       
       return std::vector<llvm::Value *> { sum };
     }
@@ -50,43 +50,23 @@ Primitive BuildMul(CoreIR::Module *mod)
   return Primitive(
     [&](auto &env, auto &args, auto &inst)
     {
-      llvm::Value *first = args[0];
-      llvm::Value *second = args[1];
-      llvm::Value *prod = env.getIRBuilder().CreateMul(first, second, "prod");
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *prod = env.getIRBuilder().CreateMul(lhs, rhs, "prod");
 
       return std::vector<llvm::Value *> { prod };
     }
   );
 }      
 
-Primitive BuildMem(CoreIR::Module *mod)
-{
-  return Primitive(
-    [&](auto &env, auto &args, auto &inst)
-    {
-      return std::vector<llvm::Value *> ();
-    }
-  );
-}      
-      
-Primitive BuildMux(CoreIR::Module *mod)
-{
-  return Primitive(
-    [&](auto &env, auto &args, auto &inst)
-    {
-      return std::vector<llvm::Value *> ();
-    }
-  );
-}      
-      
 Primitive BuildEq(CoreIR::Module *mod)
 {
   return Primitive(
     [&](auto &env, auto &args, auto &inst)
     {
-      llvm::Value *first = args[0];
-      llvm::Value *second = args[1];
-      llvm::Value *comp = env.getIRBuilder().CreateICmpEQ(first, second, "eq_comp");
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpEQ(lhs, rhs, "eq_comp");
 
       return std::vector<llvm::Value *> { comp };
     }
@@ -98,24 +78,71 @@ Primitive BuildNeq(CoreIR::Module *mod)
   return Primitive(
     [&](auto &env, auto &args, auto &inst)
     {
-      llvm::Value *first = args[0];
-      llvm::Value *second = args[1];
-      llvm::Value *comp = env.getIRBuilder().CreateICmpNE(first, second, "neq_comp");
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpNE(lhs, rhs, "neq_comp");
       return std::vector<llvm::Value *> { comp };
     }
   );
 }      
 
+Primitive BuildMux(CoreIR::Module *mod)
+{
+  return Primitive(
+    [&](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *sel = args[2];
+      //llvm::Function *fn = env.getIRBuilder().GetInsertBlock()->getParent();
+
+      llvm::Value *cond = env.getIRBuilder().CreateICmpEQ(sel,
+                                      llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 0)),
+                                      "ifcond");
+
+      //llvm::Value *cond = env.getIRBuilder().CreateFCmpONE(..,
+      //                                                     ConstantInt::get(context, APInt(0)),
+      //                                                     "ifcond");
+      llvm::BasicBlock *if_bb = env.addBasicBlock("if_block");
+      llvm::BasicBlock *else_bb = env.addBasicBlock("else_block");
+      llvm::BasicBlock *cont_bb = env.addBasicBlock("cont_block");
+
+
+      (void)lhs;
+      (void)rhs;
+      (void)sel;
+      (void)cond;
+      (void)if_bb;
+      (void)else_bb;
+      (void)cont_bb;
+
+      // if sel == [0] then sum = lhs
+      // else sum = rhs
+      return std::vector<llvm::Value *> ();
+    }
+  );
+}      
+      
+Primitive BuildMem(CoreIR::Module *mod)
+{
+  return Primitive(
+    [&](auto &env, auto &args, auto &inst)
+    {
+      return std::vector<llvm::Value *> ();
+    }
+  );
+}      
+      
 static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> InitializeMapping()
 {
   unordered_map<string,function<Primitive (CoreIR::Module *mod)>> m;
   m["coreir.reg"] = BuildReg;
   m["coreir.add"] = BuildAdd;
   m["coreir.mul"] = BuildMul;
-  m["coreir.mem"] = BuildMem;
-  m["coreir.mux"] = BuildMux;
   m["coreir.eq"] = BuildEq;
   m["coreir.neq"] = BuildNeq;
+  m["coreir.mux"] = BuildMux;
+  m["coreir.mem"] = BuildMem;
 
   return m;
 }
