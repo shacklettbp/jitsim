@@ -124,13 +124,20 @@ Primitive BuildMux(CoreIR::Module *mod)
 Primitive BuildMem(CoreIR::Module *mod)
 {
   int width = 0; 
-  int depth = 0;
+  unsigned depth = 0;
 
   for (const auto & val : mod->getGenArgs()) {
     if (val.first == "width") {
       width = val.second->get<int>();
     } else if (val.first == "depth") {
       depth = val.second->get<int>();
+      depth--;
+      depth |= depth >> 1;
+      depth |= depth >> 2;
+      depth |= depth >> 4;
+      depth |= depth >> 8;
+      depth |= depth >> 16;
+      depth++;
     }
   }
 
