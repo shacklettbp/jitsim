@@ -1,3 +1,4 @@
+#include <cmath>
 #include "coreir_primitives.hpp"
 
 #include <coreir/ir/namespace.h>
@@ -131,23 +132,28 @@ Primitive BuildMem(CoreIR::Module *mod)
       width = val.second->get<int>();
     } else if (val.first == "depth") {
       depth = val.second->get<int>();
-      depth--;
-      depth |= depth >> 1;
-      depth |= depth >> 2;
-      depth |= depth >> 4;
-      depth |= depth >> 8;
-      depth |= depth >> 16;
-      depth++;
     }
   }
 
   return Primitive(true, getNumBytes(width*depth),
     { "waddr", "wdata", "wen" }, { "raddr" },
-    [width](auto &env, auto &args, auto &inst)
+    [width, depth](auto &env, auto &args, auto &inst)
     {
       llvm::Value *raddr = args[0];
       llvm::Value *state_addr = args[1];
 
+      // Check if raddr <= depth
+      llvm::Value *valid_cond =
+        env.getIRBuilder().CreateICmpSLE(raddr, 
+                                         llvm::ConstantInt::get(env.getContext(), llvm::APInt(ceil(log2(depth)), 1)),
+                                         "valid_cond");
+      llvm::BasicBlock *then_bb = env.addBasicBlock("then", false);
+      llvm::BasicBlock *else_bb = env.addBasicBlock("else", false);
+      llvm::BasicBlock *merge_bb = env.addBasicBlock("merge", false);
+      env.getIRBuilder().CreateCondBr(valid_cond, then_bb, else_bb);
+
+      // Emit then block.
+      env.setCurBasicBlock(then_bb);
       llvm::Value *cast_addr = 
         env.getIRBuilder().CreateBitCast(state_addr,
                                          llvm::Type::getIntNPtrTy(env.getContext(), width));
@@ -158,14 +164,42 @@ Primitive BuildMem(CoreIR::Module *mod)
       llvm::Value *addr = env.getIRBuilder().CreateInBoundsGEP(cast_addr, full_addr, "addr");
       llvm::Value *rdata = env.getIRBuilder().CreateLoad(addr, "rdata");
       
-      return std::vector<llvm::Value *> { rdata };
+      env.getIRBuilder().CreateBr(merge_bb);
+
+      // Emit else block.
+      env.setCurBasicBlock(else_bb);
+      llvm::Value *else_val = llvm::ConstantInt::get(env.getContext(), llvm::APInt(width, 0));
+
+      env.getIRBuilder().CreateBr(merge_bb);
+
+      // Emit merge block.
+      env.setCurBasicBlock(merge_bb);
+
+      llvm::PHINode *phi_node =
+        env.getIRBuilder().CreatePHI(llvm::Type::getIntNTy(env.getContext(), width), 2, "iftmp");
+      phi_node->addIncoming(rdata, then_bb);
+      phi_node->addIncoming(else_val, else_bb);
+
+      return std::vector<llvm::Value *> { phi_node };
     },
-    [width](auto &env, auto &args, auto &inst)
+    [width, depth](auto &env, auto &args, auto &inst)
     {
       llvm::Value *waddr = args[0];
       llvm::Value *wdata = args[1];
       llvm::Value *wen = args[2];
       llvm::Value *state_addr = args[3];
+
+      // Check if waddr <= depth
+      llvm::Value *valid_cond =
+        env.getIRBuilder().CreateICmpSLE(waddr, 
+                                         llvm::ConstantInt::get(env.getContext(), llvm::APInt(ceil(log2(depth)), 1)),
+                                         "valid_cond");
+      llvm::BasicBlock *valid_then_bb = env.addBasicBlock("valid_then", false);
+      llvm::BasicBlock *valid_else_bb = env.addBasicBlock("valid_else", false);
+      env.getIRBuilder().CreateCondBr(valid_cond, valid_then_bb, valid_else_bb);
+
+      // Emit valid_then block.
+      env.setCurBasicBlock(valid_then_bb);
 
       llvm::Value *cast_addr = 
         env.getIRBuilder().CreateBitCast(state_addr,
@@ -175,22 +209,24 @@ Primitive BuildMem(CoreIR::Module *mod)
 
       llvm::Value *addr = env.getIRBuilder().CreateInBoundsGEP(cast_addr, full_addr, "addr");
 
-      llvm::Value *if_cond =
+      llvm::Value *wen_cond =
         env.getIRBuilder().CreateICmpEQ(wen,
                                         llvm::ConstantInt::get(env.getContext(), llvm::APInt(1, 1)),
-                                        "ifcond");
+                                        "wen_cond");
 
-      llvm::BasicBlock *then_bb = env.addBasicBlock("then", false);
-      llvm::BasicBlock *else_bb = env.addBasicBlock("else", false);
+      llvm::BasicBlock *wen_then_bb = env.addBasicBlock("wen_then", false);
+      llvm::BasicBlock *wen_else_bb = env.addBasicBlock("wen_else", false);
+      env.getIRBuilder().CreateCondBr(wen_cond, wen_then_bb, wen_else_bb);
 
-      env.getIRBuilder().CreateCondBr(if_cond, then_bb, else_bb);
-
-      // Emit then block.
-      env.setCurBasicBlock(then_bb);
+      // Emit wen_then block.
+      env.setCurBasicBlock(wen_then_bb);
       env.getIRBuilder().CreateStore(wdata, addr);
-      env.getIRBuilder().CreateBr(else_bb);
+      env.getIRBuilder().CreateBr(wen_else_bb);
 
-      env.setCurBasicBlock(else_bb);
+      env.setCurBasicBlock(wen_else_bb); // wen_else
+      env.getIRBuilder().CreateBr(valid_else_bb); 
+
+      env.setCurBasicBlock(valid_else_bb); // valid_else
     }
   );
 }      
