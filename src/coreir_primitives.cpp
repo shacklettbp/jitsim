@@ -151,7 +151,11 @@ Primitive BuildMem(CoreIR::Module *mod)
       llvm::Value *cast_addr = 
         env.getIRBuilder().CreateBitCast(state_addr,
                                          llvm::Type::getIntNPtrTy(env.getContext(), width));
-      llvm::Value *addr = env.getIRBuilder().CreateGEP(cast_addr, raddr, "addr");
+
+      /* Need to 0 extend this to the address width or llvm interprets it as negative */
+      llvm::Value *full_addr = env.getIRBuilder().CreateZExt(raddr, llvm::Type::getInt64Ty(env.getContext()));
+
+      llvm::Value *addr = env.getIRBuilder().CreateInBoundsGEP(cast_addr, full_addr, "addr");
       llvm::Value *rdata = env.getIRBuilder().CreateLoad(addr, "rdata");
       
       return std::vector<llvm::Value *> { rdata };
@@ -166,7 +170,10 @@ Primitive BuildMem(CoreIR::Module *mod)
       llvm::Value *cast_addr = 
         env.getIRBuilder().CreateBitCast(state_addr,
                                          llvm::Type::getIntNPtrTy(env.getContext(), width));
-      llvm::Value *addr = env.getIRBuilder().CreateGEP(cast_addr, waddr, "addr");
+
+      llvm::Value *full_addr = env.getIRBuilder().CreateZExt(waddr, llvm::Type::getInt64Ty(env.getContext()));
+
+      llvm::Value *addr = env.getIRBuilder().CreateInBoundsGEP(cast_addr, full_addr, "addr");
 
       llvm::Value *if_cond =
         env.getIRBuilder().CreateICmpEQ(wen,

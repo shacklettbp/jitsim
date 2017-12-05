@@ -149,7 +149,7 @@ static Value * incrementStatePtr(Value *cur_ptr, int incr, FunctionEnvironment &
   if (incr == 0) {
     return cur_ptr;
   } else {
-    return env.getIRBuilder().CreateGEP(cur_ptr, ConstantInt::get(env.getContext(), APInt(64, incr, false)));
+    return env.getIRBuilder().CreateConstInBoundsGEP1_64(cur_ptr, incr);
   }
 }
 
