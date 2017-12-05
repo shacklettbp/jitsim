@@ -37,6 +37,11 @@ BasicBlock * FunctionEnvironment::addBasicBlock(const std::string &name, bool se
   return bb;
 }
 
+DIBuilder & FunctionEnvironment::getDIBuilder()
+{
+  return parent->getDIBuilder();
+}
+
 Function * ModuleEnvironment::getFunctionDecl(const std::string &name)
 {
   auto iter = named_functions.find(name);

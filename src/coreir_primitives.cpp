@@ -186,11 +186,11 @@ Primitive BuildMem(CoreIR::Module *mod)
       env.getIRBuilder().CreateCondBr(if_cond, then_bb, else_bb);
 
       // Emit then block.
-      env.getIRBuilder().SetInsertPoint(then_bb);
+      env.setCurBasicBlock(then_bb);
       env.getIRBuilder().CreateStore(wdata, addr);
       env.getIRBuilder().CreateBr(else_bb);
 
-      env.getIRBuilder().SetInsertPoint(else_bb);
+      env.setCurBasicBlock(else_bb);
     }
   );
 }      
