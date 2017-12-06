@@ -12,7 +12,7 @@ ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &defini
 
 std::vector<ModuleEnvironment> ModulesForCircuit(Builder &builder, const Circuit &circuit);
 
-ModuleEnvironment GenerateWrapper(const Definition &definition);
+ModuleEnvironment GenerateWrapper(Builder &builder, const Definition &definition);
 
 using WrapperUpdateStateFn = void (*)(const uint8_t *input, uint8_t *state);
 using WrapperComputeOutputFn = void (*)(const uint8_t *input, uint8_t *output, uint8_t *state);

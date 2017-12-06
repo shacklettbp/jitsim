@@ -1,14 +1,10 @@
 #include <cstdlib>
 #include <iostream>
 
-#include <jitsim/JIT.hpp>
-#include <jitsim/builder.hpp>
-#include <jitsim/circuit.hpp>
-#include <jitsim/circuit_llvm.hpp>
+#include <jitsim/jit_frontend.hpp>
 #include <jitsim/coreir.hpp>
 #include <coreir/ir/context.h>
 #include <coreir/libs/commonlib.h>
-#include <jitsim/builder_hardcoded.hpp>
 
 using namespace std;
 
@@ -54,8 +50,8 @@ int main(int argc, char *argv[])
     jit.setInput("I", 3);
     LLVMStruct output = jit.computeOutput();
     jit.updateState();
-    auto val = output.getVal("O");
-    cout << val << endl;
+    auto val = output.getValue("out");
+    cout << val.toString(10, false) << endl;
   }
   cout << "State: ";
   for (const uint8_t & x : jit.getState()) {

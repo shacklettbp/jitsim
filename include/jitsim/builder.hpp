@@ -10,6 +10,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Target/TargetMachine.h>
 
 #include <iostream>
 #include <unordered_map>
@@ -93,6 +94,8 @@ class Builder {
     {}
 
     ModuleEnvironment makeModule(const std::string &name);
+
+    llvm::LLVMContext & getContext() { return context; }
 };
 
 } // end namespace JITSim

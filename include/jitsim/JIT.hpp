@@ -32,7 +32,7 @@ namespace JITSim {
 
 class JIT {
 private:
-  const DataLayout data_layout;
+  const llvm::DataLayout data_layout;
 
   llvm::orc::RTDyldObjectLinkingLayer object_layer;
   llvm::orc::IRCompileLayer<decltype(object_layer), llvm::orc::SimpleCompiler> compile_layer;
@@ -50,7 +50,7 @@ private:
 public:
   using ModuleHandle = decltype(cod_layer)::ModuleHandleT;
 
-  JIT(const TargetMachine &target_machine, const DataLayout &data_layout);
+  JIT(llvm::TargetMachine &target_machine, const llvm::DataLayout &data_layout);
 
   ModuleHandle addModule(std::unique_ptr<llvm::Module> module);
 

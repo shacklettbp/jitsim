@@ -6,15 +6,15 @@ namespace JITSim {
 using namespace llvm;
 using namespace llvm::orc;
 
-static void initializeLLVM() __attribute__((constructor))
+static __attribute__((constructor)) void initializeLLVM() 
 {
   InitializeNativeTarget();
   LLVMInitializeNativeAsmPrinter();
   LLVMInitializeNativeAsmParser();
 }
 
-JIT::JIT(const TargetMachine &target_machine, const DataLayout &dl)
-    data_layout(dl),
+JIT::JIT(TargetMachine &target_machine, const DataLayout &dl)
+  : data_layout(dl),
     object_layer([]() { return std::make_shared<SectionMemoryManager>(); }),
     compile_layer(object_layer, SimpleCompiler(target_machine)),
     optimize_layer(compile_layer,

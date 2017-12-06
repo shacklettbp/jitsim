@@ -1,5 +1,6 @@
 #include <cmath>
 #include "coreir_primitives.hpp"
+#include "utils.hpp"
 
 #include <coreir/ir/namespace.h>
 #include <coreir/ir/value.h>
@@ -9,14 +10,6 @@
 namespace JITSim {
 
 using namespace std;
-
-int getNumBytes(int bits) {
-  if (bits % 8 == 0) {
-    return bits / 8;
-  } else {
-    return bits / 8 + 1;
-  }
-}
 
 Primitive BuildReg(CoreIR::Module *mod)
 {
