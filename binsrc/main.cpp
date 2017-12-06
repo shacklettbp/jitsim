@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <iostream>
 
-#include <jitsim/jitsim.hpp>
 #include <jitsim/JIT.hpp>
 #include <jitsim/builder.hpp>
 #include <jitsim/circuit.hpp>
@@ -49,74 +48,20 @@ int main(int argc, char *argv[])
   Circuit circuit = loadJSON(argv[1]);
   circuit.print();
 
-  Builder builder;
+  JITFrontend jit(circuit);
 
-  initializeNativeTarget();
-  JIT jit;
-  vector<JIT::ModuleHandle> handles;
-
-  vector<ModuleEnvironment> modules = ModulesForCircuit(builder, circuit);
-  for (const ModuleEnvironment & mod : modules) {
-    cout << "\n=================\n\n";
-    cout << mod.getIRStr();
-  }
-
-  // Add all modules to the JIT.
-  for (ModuleEnvironment & mod : modules) {
-    handles.push_back(jit.addModule(mod.returnModule()));;
-  }
-  
-  /* ------- Execute here ------- */
-
-  const Definition &top = circuit.getTopDefinition();
-  auto update_state = (void (*)(unsigned , uint8_t *))jit.getSymbolAddress(top.getSafeName() + "_update_state");
-  auto compute_output = (int (*)(unsigned, uint8_t *))jit.getSymbolAddress(top.getSafeName() + "_compute_output");
-  assert(update_state && compute_output);
-
-  vector<uint8_t> state = top.getSimInfo().allocateState();
   for (unsigned i = 0; i < 30; i++) {
-    int x = compute_output(i, state.data());
-    update_state(i, state.data());
-    cout << x << endl;
+    jit.setInput("I", 3);
+    LLVMStruct output = jit.computeOutput();
+    jit.updateState();
+    auto val = output.getVal("O");
+    cout << val << endl;
   }
-
   cout << "State: ";
-  for (unsigned i = 0; i < state.size(); i++) {
-    cout << (int)state[i];
+  for (const uint8_t & x : jit.getState()) {
+    cout << (int)x;
   }
   cout << endl;
-
-
-  /* -------------------------- */
-  
-  // Remove all modules from the JIT.
-  for (JIT::ModuleHandle &handle : handles) {
-    jit.removeModule(handle);
-  }
-
-  /* --- BuilderHardcoded Testing --- */
-
-  /*BuilderHardcoded hc_builder;
-  JIT::ModuleHandle sl_handle = jit.addModule(hc_builder.makeStoreLoadModule());
-  std::function<void(char *)> Store = (void(*)(char *))jit.getSymbolAddress("storeConstant");
-  void *mem_addr = malloc(1);
-  Store((char *)mem_addr);
-  std::function<char(char *)> Load = (char(*)(char *))jit.getSymbolAddress("loadConstant");
-  char Result = Load((char *)mem_addr);
-  printf("%d\n", Result);
-
-  free(mem_addr);
-  jit.removeModule(sl_handle);*/
-
-  //JIT::ModuleHandle handle = jit.addModule(builder.makeExternModule());
-  //std::function<int()> Adder = (int(*)())jit.getSymbolAddress("wrapadd");
-  //int Result = Adder();
-  //cout << Result << endl;
-
-  //JIT::ModuleHandle new_handle = jit.addModule(builder.makeStructModule());
-
-  //jit.removeModule(handle);
-  //jit.removeModule(new_handle);
 
   return 0;
 }

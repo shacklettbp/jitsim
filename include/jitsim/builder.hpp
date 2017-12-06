@@ -84,9 +84,13 @@ public:
 class Builder {
   private:
     llvm::LLVMContext context;
+    llvm::DataLayout data_layout;
+    std::string triple;
   public:
 
-    Builder() {}
+    Builder(const llvm::DataLayout &dl, const llvm::TargetMachine &target_machine) 
+      : data_layout(dl), triple(target_machine.getTargetTriple().getTriple())
+    {}
 
     ModuleEnvironment makeModule(const std::string &name);
 };

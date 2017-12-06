@@ -6,34 +6,33 @@ namespace JITSim {
 using namespace llvm;
 using namespace llvm::orc;
 
-void initializeNativeTarget() {
+static void initializeLLVM() __attribute__((constructor))
+{
   InitializeNativeTarget();
   LLVMInitializeNativeAsmPrinter();
   LLVMInitializeNativeAsmParser();
 }
 
-JIT::JIT()
-  : target_machine(EngineBuilder().selectTarget()),
-                   data_layout(target_machine->createDataLayout()),
+JIT::JIT(const TargetMachine &target_machine, const DataLayout &dl)
+    data_layout(dl),
     object_layer([]() { return std::make_shared<SectionMemoryManager>(); }),
-    compile_layer(object_layer, SimpleCompiler(*target_machine)),
+    compile_layer(object_layer, SimpleCompiler(target_machine)),
     optimize_layer(compile_layer,
                   [this](std::shared_ptr<Module> module) {
                     return optimizeModule(std::move(module));
                   }),
     compile_callback_manager(
-      createLocalCompileCallbackManager(target_machine->getTargetTriple(), 0)),
+      createLocalCompileCallbackManager(target_machine.getTargetTriple(), 0)),
     cod_layer(optimize_layer,
               [](Function &fn) { return std::set<Function*>({&fn}); },
               *compile_callback_manager,
-              createLocalIndirectStubsManagerBuilder(target_machine->getTargetTriple()))
+              createLocalIndirectStubsManagerBuilder(target_machine.getTargetTriple()))
 {
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
 JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module) {
-  // Set data layout.
-  module->setDataLayout(target_machine->createDataLayout());
+  assert(module->getDataLayout() == data_layout);
 
   // Build our symbol resolver:
   // Lambda 1: Look back into the JIT itself to find symbols that are part of

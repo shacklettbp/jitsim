@@ -80,6 +80,8 @@ std::string ModuleEnvironment::getIRStr() const
 ModuleEnvironment Builder::makeModule(const std::string &name)
 {
   std::unique_ptr<Module> module = make_unique<Module>(StringRef(name), context);
+  module->setDataLayout(data_layout);
+  module->setTargetTriple(triple);
 
   return ModuleEnvironment(move(module), &context);
 }

@@ -30,39 +30,35 @@
 
 namespace JITSim {
 
-void initializeNativeTarget();
-
 class JIT {
-  private:
-    std::unique_ptr<llvm::TargetMachine> target_machine;
-    const llvm::DataLayout data_layout;
-    llvm::orc::RTDyldObjectLinkingLayer object_layer;
-    llvm::orc::IRCompileLayer<decltype(object_layer), llvm::orc::SimpleCompiler> compile_layer;
-    
-    using OptimizeFunction =
-        std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
-    llvm::orc::IRTransformLayer<decltype(compile_layer), OptimizeFunction> optimize_layer;
-    std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> module);
+private:
+  const DataLayout data_layout;
 
-    std::unique_ptr<llvm::orc::JITCompileCallbackManager> compile_callback_manager;
-    llvm::orc::CompileOnDemandLayer<decltype(optimize_layer)> cod_layer;
+  llvm::orc::RTDyldObjectLinkingLayer object_layer;
+  llvm::orc::IRCompileLayer<decltype(object_layer), llvm::orc::SimpleCompiler> compile_layer;
+  
+  using OptimizeFunction =
+      std::function<std::shared_ptr<llvm::Module>(std::shared_ptr<llvm::Module>)>;
+  llvm::orc::IRTransformLayer<decltype(compile_layer), OptimizeFunction> optimize_layer;
+  std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> module);
 
-    std::string mangle(const std::string name);
+  std::unique_ptr<llvm::orc::JITCompileCallbackManager> compile_callback_manager;
+  llvm::orc::CompileOnDemandLayer<decltype(optimize_layer)> cod_layer;
 
-  public:
-    using ModuleHandle = decltype(cod_layer)::ModuleHandleT;
+  std::string mangle(const std::string name);
 
-    JIT();
+public:
+  using ModuleHandle = decltype(cod_layer)::ModuleHandleT;
 
-    llvm::TargetMachine &getTargetMachine() { return *target_machine; };
+  JIT(const TargetMachine &target_machine, const DataLayout &data_layout);
 
-    ModuleHandle addModule(std::unique_ptr<llvm::Module> module);
+  ModuleHandle addModule(std::unique_ptr<llvm::Module> module);
 
-    llvm::JITSymbol findSymbol(const std::string name);
+  llvm::JITSymbol findSymbol(const std::string name);
 
-    llvm::JITTargetAddress getSymbolAddress(const std::string name);
+  llvm::JITTargetAddress getSymbolAddress(const std::string name);
 
-    void removeModule(ModuleHandle handle);
+  void removeModule(ModuleHandle handle);
 };
 
 } // end namespace JITSim
