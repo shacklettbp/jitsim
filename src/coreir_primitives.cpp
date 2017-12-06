@@ -137,7 +137,7 @@ Primitive BuildMem(CoreIR::Module *mod)
 
       // Check if raddr <= depth
       llvm::Value *valid_cond =
-        env.getIRBuilder().CreateICmpSLE(raddr, 
+        env.getIRBuilder().CreateICmpULT(raddr, 
                                          llvm::ConstantInt::get(env.getContext(), llvm::APInt(ceil(log2(depth)), 1)),
                                          "valid_cond");
       llvm::BasicBlock *then_bb = env.addBasicBlock("then", false);
@@ -184,7 +184,7 @@ Primitive BuildMem(CoreIR::Module *mod)
 
       // Check if waddr <= depth
       llvm::Value *valid_cond =
-        env.getIRBuilder().CreateICmpSLE(waddr, 
+        env.getIRBuilder().CreateICmpULT(waddr, 
                                          llvm::ConstantInt::get(env.getContext(), llvm::APInt(ceil(log2(depth)), 1)),
                                          "valid_cond");
       llvm::BasicBlock *valid_then_bb = env.addBasicBlock("valid_then", false);
