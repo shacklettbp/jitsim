@@ -64,7 +64,6 @@ int main(int argc, char *argv[])
       }
       smatch match;
       if (regex_search(input, match, next)) {
-        cout << match.size() << endl;
         if (match[1] == "") {
           advance = 1;
         } else {
@@ -76,6 +75,9 @@ int main(int argc, char *argv[])
         llvm::APInt val;
         strRef.getAsInteger(10, val);
         jit.setInput(in_name, val);
+
+        out = jit.computeOutput();
+        out.dump();
       } else {
         cout << "Invalid command\n";
       }
