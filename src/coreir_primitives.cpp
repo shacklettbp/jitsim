@@ -135,7 +135,7 @@ Primitive BuildMem(CoreIR::Module *mod)
       llvm::Value *raddr = args[0];
       llvm::Value *state_addr = args[1];
 
-      // Check if raddr <= depth
+      // Check if raddr < depth
       llvm::Value *valid_cond =
         env.getIRBuilder().CreateICmpULT(raddr, 
                                          llvm::ConstantInt::get(env.getContext(), llvm::APInt(ceil(log2(depth)), 1)),
@@ -182,7 +182,7 @@ Primitive BuildMem(CoreIR::Module *mod)
       llvm::Value *wen = args[2];
       llvm::Value *state_addr = args[3];
 
-      // Check if waddr <= depth
+      // Check if waddr < depth
       llvm::Value *valid_cond =
         env.getIRBuilder().CreateICmpULT(waddr, 
                                          llvm::ConstantInt::get(env.getContext(), llvm::APInt(ceil(log2(depth)), 1)),
