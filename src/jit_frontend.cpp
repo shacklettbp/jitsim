@@ -29,6 +29,14 @@ uint8_t * LLVMStruct::getMemberAddr(int idx)
   return ptr + offset;
 }
 
+const uint8_t * LLVMStruct::getMemberAddr(int idx) const
+{
+  const uint8_t *ptr = data.data();
+  uint64_t offset = layout->getElementOffset(idx);
+
+  return ptr + offset;
+}
+
 int LLVMStruct::getMemberBits(int idx) const
 {
   llvm::Type *elemty = type->getElementType(idx);
@@ -46,18 +54,29 @@ void LLVMStruct::setMember(const string &name, llvm::APInt val)
   memcpy(ptr, val.getRawData(), getNumBytes(getMemberBits(idx)));
 }
 
-llvm::APInt LLVMStruct::getValue(const string &name)
+llvm::APInt LLVMStruct::getValue(int idx) const 
 {
-  int idx = member_indices.find(name)->second;
-  uint8_t *ptr = getMemberAddr(idx);
+  const uint8_t *ptr = getMemberAddr(idx);
   int bits = getMemberBits(idx);
   int num64s = bits / 64;
   if (bits % 64 != 0) {
     num64s++;
   }
 
+  return llvm::APInt(bits, llvm::ArrayRef<uint64_t>((const uint64_t *)ptr, num64s));
+}
 
-  return llvm::APInt(bits, llvm::ArrayRef<uint64_t>((uint64_t *)ptr, num64s));
+llvm::APInt LLVMStruct::getValue(const string &name) const
+{
+  int idx = member_indices.find(name)->second;
+  return getValue(idx);
+}
+
+void LLVMStruct::dump() const
+{
+  for (const auto &name_pair : member_indices) {
+    cout << name_pair.first << ": " << getValue(name_pair.second).toString(10, false) << endl;
+  }
 }
 
 JITFrontend::JITFrontend(const Circuit &circuit, const Definition &top)

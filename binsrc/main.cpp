@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <iostream>
+#include <regex>
 
 #include <jitsim/jit_frontend.hpp>
 #include <jitsim/coreir.hpp>
@@ -45,15 +46,51 @@ int main(int argc, char *argv[])
   circuit.print();
 
   JITFrontend jit(circuit);
+  LLVMStruct out = jit.computeOutput();
+  cout << "Starting output: ";
+  out.dump();
+  cout << "\n";
 
-  for (unsigned i = 0; i < 30; i++) {
-    jit.setInput("I", 3);
-    LLVMStruct output = jit.computeOutput();
-    jit.updateState();
-    auto val = output.getValue("out");
-    cout << val.toString(10, false) << endl;
+  int advance = 0;
+  regex next(R"(next(?:\s+(\d+))?)");
+  regex assign(R"(assign\s+(\w+)\s+(\d+))");
+
+  while (true) {
+    if (advance == 0) {
+      string input;
+      getline(cin, input);
+      if (cin.eof()) {
+        break;
+      }
+      smatch match;
+      if (regex_search(input, match, next)) {
+        cout << match.size() << endl;
+        if (match[1] == "") {
+          advance = 1;
+        } else {
+          advance = stoi(match[1]);
+        }
+      } else if (regex_search(input, match, assign)) {
+        string in_name = match[1];
+        llvm::StringRef strRef = llvm::StringRef(match[2]);
+        llvm::APInt val;
+        strRef.getAsInteger(10, val);
+        jit.setInput(in_name, val);
+      } else {
+        cout << "Invalid command\n";
+      }
+
+    } else { 
+      jit.updateState();
+      out = jit.computeOutput();
+      out.dump();
+
+      advance--;
+    }
+
   }
-  cout << "State: ";
+
+  cout << "End State: ";
   for (const uint8_t & x : jit.getState()) {
     cout << (int)x;
   }

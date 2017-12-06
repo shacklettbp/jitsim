@@ -16,6 +16,7 @@ private:
   std::vector<uint8_t> data;
 
   uint8_t *getMemberAddr(int idx);
+  const uint8_t *getMemberAddr(int idx) const;
   int getMemberBits(int idx) const;
 
 public:
@@ -25,9 +26,12 @@ public:
 
   void setMember(const std::string &name, llvm::APInt val);
 
-  llvm::APInt getValue(const std::string &name);
+  llvm::APInt getValue(int idx) const;
+  llvm::APInt getValue(const std::string &name) const;
 
   uint8_t *getData() { return data.data(); }
+
+  void dump() const;
 };
 
 class JITFrontend {

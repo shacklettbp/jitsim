@@ -338,11 +338,13 @@ static void makeComputeOutputWrapper(const Definition &defn, ModuleEnvironment &
 
   FunctionType *wrapper_type =
     FunctionType::get(Type::getVoidTy(env.getContext()),
-                      {ConstructStructType(sources, env.getContext())->getPointerTo(),
-                       ConstructStructType(sinks, env.getContext())->getPointerTo(),
+                      {ConstructStructType(sources, env.getContext(), "co_wrapper_input")->getPointerTo(),
+                       ConstructStructType(sinks, env.getContext(), "co_wrapper_output")->getPointerTo(),
                        Type::getInt8PtrTy(env.getContext())}, false);
 
   FunctionEnvironment func = env.makeFunction("compute_output", wrapper_type);
+  func.addBasicBlock("entry");
+
   Value *inputs = func.getFunction()->arg_begin();
   Value *outputs = func.getFunction()->arg_begin() + 1;
   Value *state = func.getFunction()->arg_begin() + 2;
@@ -352,7 +354,7 @@ static void makeComputeOutputWrapper(const Definition &defn, ModuleEnvironment &
 
   std::vector<Value *> args;
   for (unsigned i = 0; i < sources.size(); i++) {
-    Value *arg = func.getIRBuilder().CreateConstInBoundsGEP2_64(inputs, 0, i);
+    Value *arg = func.getIRBuilder().CreateStructGEP(inputs->getType()->getPointerElementType(), inputs, i);
     arg = func.getIRBuilder().CreateLoad(arg);
     args.push_back(arg);
   }
@@ -362,9 +364,11 @@ static void makeComputeOutputWrapper(const Definition &defn, ModuleEnvironment &
 
   for (unsigned i = 0; i < sinks.size(); i++) {
     Value *val = func.getIRBuilder().CreateExtractValue(output_struct, { i });
-    Value *addr = func.getIRBuilder().CreateConstInBoundsGEP2_64(outputs, 0, i);
+    Value *addr = func.getIRBuilder().CreateStructGEP(outputs->getType()->getPointerElementType(), outputs, i);
     func.getIRBuilder().CreateStore(val, addr);
   }
+
+  func.getIRBuilder().CreateRetVoid();
 
   func.verify();
 }
@@ -375,10 +379,12 @@ static void makeUpdateStateWrapper(const Definition &defn, ModuleEnvironment &en
 
   FunctionType *wrapper_type =
     FunctionType::get(Type::getVoidTy(env.getContext()),
-                      {ConstructStructType(sources, env.getContext())->getPointerTo(), 
+                      {ConstructStructType(sources, env.getContext(), "us_wrapper_input")->getPointerTo(), 
                        Type::getInt8PtrTy(env.getContext())}, false);
 
   FunctionEnvironment func = env.makeFunction("update_state", wrapper_type);
+  func.addBasicBlock("entry");
+
   Value *inputs = func.getFunction()->arg_begin();
   Value *state = func.getFunction()->arg_begin() + 1;
 
@@ -387,7 +393,7 @@ static void makeUpdateStateWrapper(const Definition &defn, ModuleEnvironment &en
 
   std::vector<Value *> args;
   for (unsigned i = 0; i < sources.size(); i++) {
-    Value *arg = func.getIRBuilder().CreateConstInBoundsGEP2_64(inputs, 0, i);
+    Value *arg = func.getIRBuilder().CreateStructGEP(inputs->getType()->getPointerElementType(), inputs, i);
     arg = func.getIRBuilder().CreateLoad(arg);
     args.push_back(arg);
   }
@@ -395,12 +401,14 @@ static void makeUpdateStateWrapper(const Definition &defn, ModuleEnvironment &en
 
   func.getIRBuilder().CreateCall(underlying, args);
 
+  func.getIRBuilder().CreateRetVoid();
+
   func.verify();
 }
 
 ModuleEnvironment GenerateWrapper(Builder &builder, const Definition &definition)
 {
-  ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "wrapper");
+  ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_wrapper");
 
   makeComputeOutputWrapper(definition, mod_env);
   makeUpdateStateWrapper(definition, mod_env);
