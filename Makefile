@@ -20,10 +20,19 @@ CXXFLAGS += -isystem ${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
 # LLVM
-CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags) -fexceptions -std=c++17
+ifdef SYSTEMLLVM
+CXXFLAGS += $(shell llvm-config --cxxflags) -Wno-unused-parameter
+LLVMLDFLAGS += $(shell llvm-config --ldflags)
+LLVMLDFLAGS += $(shell llvm-config --libs)
+else
+CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags)
 LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
 LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libdir)
 LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
+endif
+
+CXXFLAGS += -fexceptions -std=c++17
+
 export CXX
 export CXXFLAGS
 export LDFLAGS
