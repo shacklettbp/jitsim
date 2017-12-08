@@ -46,6 +46,7 @@ public:
   const std::vector<const Instance *> & getStateDeps() const { return state_deps; }
   const std::vector<const Instance *> & getOutputDeps() const { return output_deps; }
   const std::vector<const Instance *> & getStatefulInstances() const { return stateful_insts; }
+  const std::vector<const Instance *> & getAllInstances() const { return all_insts; }
   const std::vector<const Source *> & getStateSources() const { return state_dep_srcs; }
   const std::vector<const Source *> & getOutputSources() const { return output_dep_srcs; }
 
