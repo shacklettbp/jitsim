@@ -307,9 +307,11 @@ ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &defini
   ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName());
 
   makeComputeOutputDefn(definition, mod_env);
+  makeDebugOutputDepsDefn(definition, mod_env);
 
   if (siminfo.isStateful()) {
     makeUpdateStateDefn(definition, mod_env);
+    makeDebugStateDepsDefn(definition, mod_env);
   }
 
   assert(!mod_env.verify());
