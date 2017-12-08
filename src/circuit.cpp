@@ -228,8 +228,13 @@ Definition::Definition(const string &name_,
     safe_name(cleanName(name)),
     interface(move(iface)),
     instances(move(insts)),
+    instance_lookup(),
     siminfo(interface, fully_connect(*this, instances, make_connections))
-{}
+{
+  for (const Instance &inst : instances) {
+    instance_lookup[inst.getName()] = &inst;
+  }
+}
 
 Definition::Definition(const string &name_,
                        IFace &&iface,
@@ -237,10 +242,15 @@ Definition::Definition(const string &name_,
   : name(name_),
     interface(move(iface)),
     instances(),
+    instance_lookup(),
     siminfo(interface, primitive)
 {
 }
 
+const Instance & Definition::getInstance(const std::string &name) const
+{
+  return *instance_lookup.find(name)->second;
+}
 
 Instance Definition::makeInstance(const string &name) const
 {

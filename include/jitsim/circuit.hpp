@@ -221,6 +221,7 @@ private:
   IFace interface;
 
   std::vector<Instance> instances;
+  std::unordered_map<std::string, const Instance *> instance_lookup;
 
   SimInfo siminfo;
 public:
@@ -240,6 +241,7 @@ public:
   const std::string & getName() const { return name; }
   const std::string & getSafeName() const { return safe_name; }
   const SimInfo & getSimInfo() const { return siminfo; }
+  const Instance & getInstance(const std::string &name) const;
 
   void print(const std::string &prefix = "") const;
 };
