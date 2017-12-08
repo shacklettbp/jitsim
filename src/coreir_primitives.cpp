@@ -11,33 +11,6 @@ namespace JITSim {
 
 using namespace std;
 
-Primitive BuildReg(CoreIR::Module *mod)
-{
-  int width = 0;
-  for (const auto & val : mod->getGenArgs()) {
-    if (val.first == "width") {
-      width = val.second->get<int>();
-    }
-  }
-
-  return Primitive(true, getNumBytes(width),
-    { "in" }, {},
-    [width](auto &env, auto &args, auto &inst)
-    {
-      llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[0], llvm::Type::getIntNPtrTy(env.getContext(), width));
-      llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
-
-      return std::vector<llvm::Value *> { output };
-    },
-    [width](auto &env, auto &args, auto &inst)
-    {
-      llvm::Value *input = args[0];
-      llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[1], llvm::Type::getIntNPtrTy(env.getContext(), width));
-      env.getIRBuilder().CreateStore(input, addr);
-    }
-  );
-}
-
 Primitive BuildAdd(CoreIR::Module *mod)
 {
   return Primitive(
@@ -211,6 +184,33 @@ Primitive BuildSLE(CoreIR::Module *mod)
   );
 }
 
+Primitive BuildReg(CoreIR::Module *mod)
+{
+  int width = 0;
+  for (const auto & val : mod->getGenArgs()) {
+    if (val.first == "width") {
+      width = val.second->get<int>();
+    }
+  }
+
+  return Primitive(true, getNumBytes(width),
+    { "in" }, {},
+    [width](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[0], llvm::Type::getIntNPtrTy(env.getContext(), width));
+      llvm::Value *output = env.getIRBuilder().CreateLoad(addr, "output");
+
+      return std::vector<llvm::Value *> { output };
+    },
+    [width](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *input = args[0];
+      llvm::Value *addr = env.getIRBuilder().CreateBitCast(args[1], llvm::Type::getIntNPtrTy(env.getContext(), width));
+      env.getIRBuilder().CreateStore(input, addr);
+    }
+  );
+}
+
 Primitive BuildMux(CoreIR::Module *mod)
 {
   return Primitive(
@@ -342,6 +342,19 @@ Primitive BuildMem(CoreIR::Module *mod)
   );
 }      
 
+Primitive BuildLShr(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *value = args[0];
+      llvm::Value *shift_amount = args[1];
+      llvm::Value *result = env.getIRBuilder().CreateLShr(value, shift_amount, "shift_res");
+      return std::vector<llvm::Value *> { result };
+    }
+  );
+}
+
 Primitive BuildAShr(CoreIR::Module *mod)
 {
   return Primitive( 
@@ -350,6 +363,19 @@ Primitive BuildAShr(CoreIR::Module *mod)
       llvm::Value *value = args[0];
       llvm::Value *shift_amount = args[1];
       llvm::Value *result = env.getIRBuilder().CreateAShr(value, shift_amount, "shift_res");
+      return std::vector<llvm::Value *> { result };
+    }
+  );
+}
+
+Primitive BuildShl(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *value = args[0];
+      llvm::Value *shift_amount = args[1];
+      llvm::Value *result = env.getIRBuilder().CreateShl(value, shift_amount, "shift_res");
       return std::vector<llvm::Value *> { result };
     }
   );
@@ -368,11 +394,47 @@ Primitive BuildAnd(CoreIR::Module *mod)
   );
 }
 
+Primitive BuildOr(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *result = env.getIRBuilder().CreateOr(lhs, rhs, "or_res");
+      return std::vector<llvm::Value *> { result };
+    }
+  );
+}
+
+Primitive BuildXor(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *result = env.getIRBuilder().CreateXor(lhs, rhs, "xor_res");
+      return std::vector<llvm::Value *> { result };
+    }
+  );
+}
+
+Primitive BuildNot(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *value = args[0];
+      llvm::Value *result = env.getIRBuilder().CreateNot(value, "not_res");
+      return std::vector<llvm::Value *> { result };
+    }
+  );
+}
+
 static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> InitializeMapping()
 {
   unordered_map<string,function<Primitive (CoreIR::Module *mod)>> m;
-  m["coreir.reg"] = BuildReg;
-
   m["coreir.add"] = BuildAdd;
   m["coreir.sub"] = BuildSub;
   m["coreir.mul"] = BuildMul;
@@ -388,11 +450,22 @@ static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> Initializ
   m["coreir.slt"] = BuildUGT;
   m["coreir.sle"] = BuildUGT;
 
+  m["coreir.reg"] = BuildReg;
   m["coreir.mux"] = BuildMux;
+  m["corebit.mux"] = BuildMux;
   m["coreir.mem"] = BuildMem;
+  m["coreir.lshr"] = BuildLShr;
   m["coreir.ashr"] = BuildAShr;
+  m["coreir.shl"] = BuildShl;
+
   m["coreir.and"] = BuildAnd;
   m["corebit.and"] = BuildAnd;
+  m["coreir.or"] = BuildOr;
+  m["corebit.or"] = BuildOr;
+  m["coreir.xor"] = BuildXor;
+  m["corebit.xor"] = BuildXor;
+  m["coreir.not"] = BuildNot;
+  m["corebit.not"] = BuildNot;
 
   return m;
 }
