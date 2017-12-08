@@ -170,10 +170,27 @@ void SimInfo::calculateStateOffsets() {
   num_state_bytes = offset;
 }
 
+void SimInfo::sortAllInstances()
+{
+  unordered_set<const Instance *> visited_instances;
+  for (const Instance *inst : state_deps) {
+    all_insts.push_back(inst);
+    visited_instances.insert(inst);
+  }
+
+  for (const Instance *inst : output_deps) {
+    if (visited_instances.count(inst) == 0) {
+      all_insts.push_back(inst);
+      visited_instances.insert(inst);
+    }
+  }
+}
+
 SimInfo::SimInfo(const IFace &defn_iface, const vector<Instance> &instances)
   : stateful_insts(filterStatefulInstances(instances)),
     state_deps(),
     output_deps(),
+    all_insts(),
     offset_map(),
     primitive(),
     is_stateful(stateful_insts.size() > 0),
@@ -187,6 +204,8 @@ SimInfo::SimInfo(const IFace &defn_iface, const vector<Instance> &instances)
   }
 
   analyzeOutputDeps(defn_iface);
+
+  sortAllInstances();
 }
 
 SimInfo::SimInfo(const IFace &defn_iface, const Primitive &primitive_)

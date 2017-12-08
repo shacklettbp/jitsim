@@ -19,6 +19,7 @@ private:
   std::vector<const Instance *> stateful_insts;
   std::vector<const Instance *> state_deps;
   std::vector<const Instance *> output_deps;
+  std::vector<const Instance *> all_insts;
   std::unordered_map<const Instance *, unsigned> offset_map;
   std::optional<Primitive> primitive;
 
@@ -31,6 +32,7 @@ private:
   void calculateStateOffsets();
   void analyzeStateDeps(const IFace &);
   void analyzeOutputDeps(const IFace &);
+  void sortAllInstances();
 
 public:
   SimInfo(const IFace &defn_iface, const std::vector<Instance> &instances);
