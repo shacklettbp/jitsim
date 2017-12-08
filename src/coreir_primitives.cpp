@@ -52,6 +52,20 @@ Primitive BuildAdd(CoreIR::Module *mod)
   );
 }
 
+Primitive BuildSub(CoreIR::Module *mod)
+{
+  return Primitive(
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *diff = env.getIRBuilder().CreateSub(lhs, rhs, "diff");
+      
+      return std::vector<llvm::Value *> { diff };
+    }
+  );
+}
+
 Primitive BuildMul(CoreIR::Module *mod)
 {
   return Primitive(
@@ -92,6 +106,110 @@ Primitive BuildNeq(CoreIR::Module *mod)
     }
   );
 }      
+
+Primitive BuildUGT(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpUGT(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+Primitive BuildUGE(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpUGE(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+Primitive BuildULT(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpULT(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+Primitive BuildULE(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpULE(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+Primitive BuildSGT(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpSGT(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+Primitive BuildSGE(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpSGE(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+Primitive BuildSLT(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpSLT(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+Primitive BuildSLE(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpSLT(lhs, rhs, "comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
 
 Primitive BuildMux(CoreIR::Module *mod)
 {
@@ -223,17 +341,58 @@ Primitive BuildMem(CoreIR::Module *mod)
     }
   );
 }      
-      
+
+Primitive BuildAShr(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *value = args[0];
+      llvm::Value *shift_amount = args[1];
+      llvm::Value *result = env.getIRBuilder().CreateAShr(value, shift_amount, "shift_res");
+      return std::vector<llvm::Value *> { result };
+    }
+  );
+}
+
+Primitive BuildAnd(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lhs = args[0];
+      llvm::Value *rhs = args[1];
+      llvm::Value *result = env.getIRBuilder().CreateAnd(lhs, rhs, "and_res");
+      return std::vector<llvm::Value *> { result };
+    }
+  );
+}
+
 static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> InitializeMapping()
 {
   unordered_map<string,function<Primitive (CoreIR::Module *mod)>> m;
   m["coreir.reg"] = BuildReg;
+
   m["coreir.add"] = BuildAdd;
+  m["coreir.sub"] = BuildSub;
   m["coreir.mul"] = BuildMul;
+
   m["coreir.eq"] = BuildEq;
   m["coreir.neq"] = BuildNeq;
+  m["coreir.ugt"] = BuildUGT;
+  m["coreir.uge"] = BuildUGE;
+  m["coreir.ult"] = BuildULT;
+  m["coreir.ule"] = BuildULE;
+  m["coreir.sgt"] = BuildUGT;
+  m["coreir.sge"] = BuildSGE;
+  m["coreir.slt"] = BuildUGT;
+  m["coreir.sle"] = BuildUGT;
+
   m["coreir.mux"] = BuildMux;
   m["coreir.mem"] = BuildMem;
+  m["coreir.ashr"] = BuildAShr;
+  m["coreir.and"] = BuildAnd;
+  m["corebit.and"] = BuildAnd;
 
   return m;
 }
