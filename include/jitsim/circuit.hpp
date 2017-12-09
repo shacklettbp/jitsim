@@ -3,6 +3,7 @@
 
 #include <jitsim/simanalysis.hpp>
 #include <jitsim/primitive.hpp>
+#include <jitsim/optional.hpp>
 
 #include <cassert>
 #include <unordered_map>
@@ -12,7 +13,6 @@
 #include <deque>
 #include <utility>
 #include <functional>
-#include <optional>
 
 #include <llvm/ADT/APInt.h>
 
@@ -46,7 +46,7 @@ private:
   const Source *val;
   int offset;
   int width;
-  std::optional<llvm::APInt> constant;
+  optional<llvm::APInt> constant;
 
 public:
   SourceSlice(const Definition *definition_, const Instance *instance_,
@@ -98,7 +98,7 @@ class Sink {
 private:
   std::string name;
   int width;
-  std::optional<Select> select;
+  optional<Select> select;
 public:
   Sink(const std::string &name_, int w)
     : name(name_), width(w), select() {}

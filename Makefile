@@ -31,7 +31,7 @@ LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libd
 LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
 endif
 
-CXXFLAGS += -fexceptions -std=c++17
+CXXFLAGS += -fexceptions -std=c++14
 
 export CXX
 export CXXFLAGS

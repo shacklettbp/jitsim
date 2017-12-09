@@ -2,11 +2,11 @@
 #define JITSIM_SIMANALYSIS_HPP_INCLUDED
 
 #include <jitsim/primitive.hpp>
+#include <jitsim/optional.hpp>
 
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include <optional>
 
 namespace JITSim {
 
@@ -21,7 +21,7 @@ private:
   std::vector<const Instance *> output_deps;
   std::vector<const Instance *> all_insts;
   std::unordered_map<const Instance *, unsigned> offset_map;
-  std::optional<Primitive> primitive;
+  optional<Primitive> primitive;
 
   bool is_stateful;
   unsigned int num_state_bytes;
