@@ -120,7 +120,7 @@ static void analyzeDependencies(const IFace &defn_iface,
 {
   unordered_set<const SourceSlice *> deps = getDependencies(frontier);
   unordered_set<const Instance *> unsorted_insts = getInstances(deps);
-  instances = move(topoSortInstances(unsorted_insts));
+  instances = topoSortInstances(unsorted_insts);
 
   unordered_set<const Source *> dep_src_set;
   for (const SourceSlice *slice : deps) {
