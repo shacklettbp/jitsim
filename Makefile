@@ -3,6 +3,16 @@ CXXFLAGS = -fPIC
 CXXFLAGS += -Wall -Werror -pedantic -Wextra
 LDFLAGS = -fPIC
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S), Linux)
+TARGET = so
+endif
+ifeq ($(UNAME_S),Darwin)
+LDFLAGS += -lz -lncurses
+TARGET = dylib
+endif
+
+
 ifdef SIMOPT
 CXXFLAGS += -O2 -march=native
 else
@@ -16,6 +26,8 @@ endif
 CXXFLAGS += -Iinclude
 LDFLAGS += -Lbuild
 
+# FIXME: coreir can be installed into a system path, or this should be added
+# explicitly as an option by the user
 CXXFLAGS += -isystem ${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
@@ -24,6 +36,7 @@ ifdef SYSTEMLLVM
 CXXFLAGS += $(shell llvm-config --cxxflags) -Wno-unused-parameter
 LLVMLDFLAGS += $(shell llvm-config --ldflags)
 LLVMLDFLAGS += $(shell llvm-config --libs)
+LLVMLDFLAGS += -Wl,-rpath,$(shell llvm-config --libdir)
 else
 CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags)
 LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
@@ -37,7 +50,7 @@ export CXX
 export CXXFLAGS
 export LDFLAGS
 
-all: build/libsimjit.so build/jitfrontend
+all: build/libsimjit.$(TARGET) build/jitfrontend
 
 BINSRCS =$(wildcard binsrc/[^_]*.cpp)
 BINOBJS =$(patsubst binsrc/%.cpp,build/objs/%.o,$(BINSRCS))
@@ -62,9 +75,12 @@ build/objs/%.o: binsrc/%.cpp
 build/libsimjit.so: $(LIBOBJS)
 	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -shared -lcoreir -o $@
 
-build/jitfrontend: build/libsimjit.so $(BINOBJS)
+build/libsimjit.dylib: $(LIBOBJS)
+	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -dynamiclib -lcoreir -o $@
+
+build/jitfrontend: build/libsimjit.$(TARGET) $(BINOBJS)
 	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
 
 .PHONY: clean
 clean:
-	rm -rf build/libsimjit.so build/jitfrontend build/objs/*
+	rm -rf build/libsimjit.$(TARGET) build/jitfrontend build/objs/*
