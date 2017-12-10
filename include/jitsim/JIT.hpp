@@ -33,6 +33,7 @@ namespace JITSim {
 class JIT {
 private:
   const llvm::DataLayout data_layout;
+  std::unique_ptr<llvm::orc::JITCompileCallbackManager> compile_callback_manager;
 
   llvm::orc::RTDyldObjectLinkingLayer object_layer;
   llvm::orc::IRCompileLayer<decltype(object_layer), llvm::orc::SimpleCompiler> compile_layer;
@@ -42,7 +43,6 @@ private:
   llvm::orc::IRTransformLayer<decltype(compile_layer), OptimizeFunction> optimize_layer;
   std::shared_ptr<llvm::Module> optimizeModule(std::shared_ptr<llvm::Module> module);
 
-  std::unique_ptr<llvm::orc::JITCompileCallbackManager> compile_callback_manager;
   llvm::orc::CompileOnDemandLayer<decltype(optimize_layer)> cod_layer;
 
   std::string mangle(const std::string name);
