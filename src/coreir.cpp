@@ -93,7 +93,7 @@ GenInstances(CoreIR::ModuleDef *core_def,
 
     const Definition *defn = mod_map.find(coreinst_mod)->second;
 
-    instances.emplace_back(move(defn->makeInstance(name)));
+    instances.emplace_back(defn->makeInstance(name));
     core_instances.push_back(coreinst);
   }
 

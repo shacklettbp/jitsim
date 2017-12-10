@@ -52,7 +52,7 @@ void SourceSlice::extend(const SourceSlice &other)
 }
 
 Select::Select(SourceSlice &&slice) 
-  : Select(move(vector<SourceSlice>(1, move(slice))))
+  : Select(vector<SourceSlice>(1, move(slice)))
 {}
 
 Select::Select(std::vector<SourceSlice> &&slices_)

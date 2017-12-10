@@ -38,7 +38,7 @@ LLVMLDFLAGS += $(shell llvm-config --ldflags)
 LLVMLDFLAGS += $(shell llvm-config --libs)
 LLVMLDFLAGS += -Wl,-rpath,$(shell llvm-config --libdir)
 else
-CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags)
+CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags) -Wno-unknown-warning-option
 LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
 LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libdir)
 LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
