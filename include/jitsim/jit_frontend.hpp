@@ -46,15 +46,22 @@ private:
   LLVMStruct co_out;
   LLVMStruct us_in;
 
-  std::vector<JIT::ModuleHandle> jit_modules;
   std::vector<uint8_t> state;
+
+  using WrapperUpdateStateFn = void (*)(const uint8_t *input, uint8_t *state);
+  using WrapperComputeOutputFn = void (*)(const uint8_t *input, uint8_t *output, uint8_t *state);
+  using WrapperGetValuesFn = void (*)(const uint8_t *input, uint8_t *state);
 
   WrapperComputeOutputFn compute_output_ptr;
   WrapperUpdateStateFn update_state_ptr;
+  WrapperGetValuesFn get_values_ptr;
+
+  void addDefinitionFunctions(const Definition &defn);
+  void addWrappers(const Definition &top);
+
   JITFrontend(const Circuit &circuit, const Definition &top);
 public:
   JITFrontend(const Circuit &circuit);
-  ~JITFrontend();
 
   void setInput(const std::string &name, uint64_t val);
   void setInput(const std::string &name, llvm::APInt val);

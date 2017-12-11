@@ -5,29 +5,6 @@ namespace JITSim {
 
 using namespace llvm;
 
-static bool needsModule(const Definition &definition)
-{
-  const SimInfo &siminfo = definition.getSimInfo();
-  if (!siminfo.isPrimitive()) {
-    return true;
-  }
-
-  return siminfo.getPrimitive().has_definition;
-}
-
-static ModuleEnvironment ModuleForPrimitive(Builder &builder,
-                                            const Definition &definition, 
-                                            const Primitive &prim)
-{
-  assert(prim.has_definition);
-
-  ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName());
-
-  prim.make_def(mod_env);
-
-  return mod_env;
-}
-
 std::vector<Type *> getArgTypes(const std::vector<const Source *> &sources, ModuleEnvironment &mod_env)
 {
   std::vector<Type *> arg_types;
@@ -220,8 +197,10 @@ static void makeInstanceUpdateState(const Instance *inst, const SimInfo &defn_in
   }
 }
 
-static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironment &mod_env)
+std::unique_ptr<Module> MakeComputeOutput(Builder &builder, const Definition &definition)
 {
+  ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_compute_output");
+
   const SimInfo &defn_info = definition.getSimInfo();
 
   FunctionType *co_type = makeComputeOutputType(definition, mod_env);
@@ -261,10 +240,14 @@ static void makeComputeOutputDefn(const Definition &definition, ModuleEnvironmen
   compute_output.getIRBuilder().CreateRet(ret_val);
 
   assert(!compute_output.verify());
+  
+  return mod_env.returnModule();
 }
 
-static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment &mod_env)
+std::unique_ptr<Module> MakeUpdateState(Builder &builder, const Definition &definition)
 {
+  ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_update_state");
+
   const SimInfo &defn_info = definition.getSimInfo();
 
   FunctionType *us_type = makeUpdateStateType(definition, mod_env);
@@ -295,64 +278,33 @@ static void makeUpdateStateDefn(const Definition &definition, ModuleEnvironment 
 
   update_state.getIRBuilder().CreateRetVoid();
   assert(!update_state.verify());
-}
-
-ModuleEnvironment ModuleForDefinition(Builder &builder, const Definition &definition)
-{
-  const SimInfo &siminfo = definition.getSimInfo();
-  if (siminfo.isPrimitive()) {
-    return ModuleForPrimitive(builder, definition, siminfo.getPrimitive());
-  }
-
-  ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName());
-
-  makeComputeOutputDefn(definition, mod_env);
-  makeDebugOutputDepsDefn(definition, mod_env);
-
-  if (siminfo.isStateful()) {
-    makeUpdateStateDefn(definition, mod_env);
-    makeDebugStateDepsDefn(definition, mod_env);
-  }
-
   assert(!mod_env.verify());
 
-  return mod_env;
+  return mod_env.returnModule();
 }
 
-std::vector<ModuleEnvironment> ModulesForCircuit(Builder &builder, const Circuit &circuit)
+std::unique_ptr<Module> MakeComputeOutputWrapper(Builder &builder, const Definition &defn)
 {
-  std::vector<ModuleEnvironment> modules;
+  ModuleEnvironment mod_env = builder.makeModule(defn.getSafeName() + "_compute_output_wrapper");
 
-  for (const Definition &defn : circuit.getDefinitions()) {
-    if (needsModule(defn)) {
-      auto mod = ModuleForDefinition(builder, defn);
-      modules.emplace_back(std::move(mod));
-    }
-  }
-
-  return modules;
-}
-
-static void makeComputeOutputWrapper(const Definition &defn, ModuleEnvironment &env)
-{
   const std::vector<const Source *> & sources = defn.getSimInfo().getOutputSources();
   const std::vector<Sink> & sinks = defn.getIFace().getSinks();
 
   FunctionType *wrapper_type =
-    FunctionType::get(Type::getVoidTy(env.getContext()),
-                      {ConstructStructType(sources, env.getContext(), "co_wrapper_input")->getPointerTo(),
-                       ConstructStructType(sinks, env.getContext(), "co_wrapper_output")->getPointerTo(),
-                       Type::getInt8PtrTy(env.getContext())}, false);
+    FunctionType::get(Type::getVoidTy(mod_env.getContext()),
+                      {ConstructStructType(sources, mod_env.getContext(), "co_wrapper_input")->getPointerTo(),
+                       ConstructStructType(sinks, mod_env.getContext(), "co_wrapper_output")->getPointerTo(),
+                       Type::getInt8PtrTy(mod_env.getContext())}, false);
 
-  FunctionEnvironment func = env.makeFunction("compute_output", wrapper_type);
+  FunctionEnvironment func = mod_env.makeFunction("compute_output", wrapper_type);
   func.addBasicBlock("entry");
 
   Value *inputs = func.getFunction()->arg_begin();
   Value *outputs = func.getFunction()->arg_begin() + 1;
   Value *state = func.getFunction()->arg_begin() + 2;
 
-  FunctionType *co_type = makeComputeOutputType(defn, env);
-  Function *underlying = env.makeFunctionDecl(defn.getSafeName() + "_compute_output", co_type);
+  FunctionType *co_type = makeComputeOutputType(defn, mod_env);
+  Function *underlying = mod_env.makeFunctionDecl(defn.getSafeName() + "_compute_output", co_type);
 
   std::vector<Value *> args;
   for (unsigned i = 0; i < sources.size(); i++) {
@@ -373,25 +325,29 @@ static void makeComputeOutputWrapper(const Definition &defn, ModuleEnvironment &
   func.getIRBuilder().CreateRetVoid();
 
   func.verify();
+
+  return mod_env.returnModule();
 }
 
-static void makeUpdateStateWrapper(const Definition &defn, ModuleEnvironment &env)
+std::unique_ptr<Module> MakeUpdateStateWrapper(Builder &builder, const Definition &defn)
 {
+  ModuleEnvironment mod_env = builder.makeModule(defn.getSafeName() + "_update_state_wrapper");
+
   const std::vector<const Source *> & sources = defn.getSimInfo().getStateSources();
 
   FunctionType *wrapper_type =
-    FunctionType::get(Type::getVoidTy(env.getContext()),
-                      {ConstructStructType(sources, env.getContext(), "us_wrapper_input")->getPointerTo(), 
-                       Type::getInt8PtrTy(env.getContext())}, false);
+    FunctionType::get(Type::getVoidTy(mod_env.getContext()),
+                      {ConstructStructType(sources, mod_env.getContext(), "us_wrapper_input")->getPointerTo(), 
+                       Type::getInt8PtrTy(mod_env.getContext())}, false);
 
-  FunctionEnvironment func = env.makeFunction("update_state", wrapper_type);
+  FunctionEnvironment func = mod_env.makeFunction("update_state", wrapper_type);
   func.addBasicBlock("entry");
 
   Value *inputs = func.getFunction()->arg_begin();
   Value *state = func.getFunction()->arg_begin() + 1;
 
-  FunctionType *us_type = makeUpdateStateType(defn, env);
-  Function *underlying = env.makeFunctionDecl(defn.getSafeName() + "_update_state", us_type);
+  FunctionType *us_type = makeUpdateStateType(defn, mod_env);
+  Function *underlying = mod_env.makeFunctionDecl(defn.getSafeName() + "_update_state", us_type);
 
   std::vector<Value *> args;
   for (unsigned i = 0; i < sources.size(); i++) {
@@ -404,19 +360,18 @@ static void makeUpdateStateWrapper(const Definition &defn, ModuleEnvironment &en
   func.getIRBuilder().CreateCall(underlying, args);
 
   func.getIRBuilder().CreateRetVoid();
-
   func.verify();
+
+  return mod_env.returnModule();
 }
 
-ModuleEnvironment GenerateWrapper(Builder &builder, const Definition &definition)
+std::unique_ptr<Module> MakeGetValuesWrapper(Builder &builder, const Definition &defn)
 {
-  ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_wrapper");
+  ModuleEnvironment mod_env = builder.makeModule(defn.getSafeName() + "_get_values_wrapper");
 
-  makeComputeOutputWrapper(definition, mod_env);
-  makeUpdateStateWrapper(definition, mod_env);
+  // FIXME
 
-  mod_env.verify();
-  return mod_env;
+  return mod_env.returnModule();
 }
 
 }
