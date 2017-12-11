@@ -369,8 +369,20 @@ std::unique_ptr<Module> MakeGetValuesWrapper(Builder &builder, const Definition 
 {
   ModuleEnvironment mod_env = builder.makeModule(defn.getSafeName() + "_get_values_wrapper");
 
+  const std::vector<Source> &sources = defn.getIFace().getSources();
+
+  FunctionType *wrapper_type =
+    FunctionType::get(Type::getVoidTy(mod_env.getContext()),
+                      {ConstructStructType(sources, mod_env.getContext(), "gv_wrapper_input")->getPointerTo(),
+                       Type::getInt8PtrTy(mod_env.getContext())}, false);
+
+  FunctionEnvironment func = mod_env.makeFunction("get_values", wrapper_type);
+  func.addBasicBlock("entry");
+
   // FIXME
 
+  func.getIRBuilder().CreateRetVoid();
+  func.verify();
   return mod_env.returnModule();
 }
 

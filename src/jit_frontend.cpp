@@ -119,6 +119,7 @@ JITFrontend::JITFrontend(const Circuit &circuit, const Definition &top)
     co_in(top.getSimInfo().getOutputSources(), data_layout, builder.getContext()),
     co_out(top.getIFace().getSinks(), data_layout, builder.getContext()),
     us_in(top.getSimInfo().getStateSources(), data_layout, builder.getContext()),
+    gv_in(top.getIFace().getSources(), data_layout, builder.getContext()),
     state(top.getSimInfo().allocateState()),
     compute_output_ptr(nullptr),
     update_state_ptr(nullptr)
@@ -152,6 +153,7 @@ void JITFrontend::setInput(const std::string &name, llvm::APInt val)
 {
   co_in.setMember(name, val);
   us_in.setMember(name, val);
+  gv_in.setMember(name, val);
 }
 
 void JITFrontend::updateState()
@@ -163,6 +165,11 @@ const LLVMStruct & JITFrontend::computeOutput()
 {
   compute_output_ptr(co_in.getData(), co_out.getData(), state.data());
   return co_out;
+}
+
+void JITFrontend::dumpIR()
+{
+  jit.precompileDumpIR();
 }
 
 }
