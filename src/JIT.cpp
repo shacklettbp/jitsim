@@ -1,6 +1,8 @@
 #include <jitsim/JIT.hpp>
 #include <iostream>
 
+#include <llvm/Support/raw_os_ostream.h>
+
 namespace JITSim {
 
 using namespace llvm;
@@ -28,7 +30,8 @@ JIT::JIT(TargetMachine &target_machine, const DataLayout &dl)
     debug_layer(optimize_layer,
                 [this](std::shared_ptr<Module> module) {
                   return debugModule(std::move(module));
-                })
+                }),
+    debug_print_ir(false)
 {
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
@@ -107,6 +110,11 @@ std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> module) {
 
 std::shared_ptr<Module> JIT::debugModule(std::shared_ptr<Module> module)
 {
+  if (debug_print_ir) {
+    outs() << "\n==============\n";
+    outs() << *module;
+    outs() << "\n==============\n";
+  }
   return module;
 }
 
@@ -140,6 +148,21 @@ void JIT::addLazyFunction(std::string name,
 
     return addr;
   });
+  callback_addrs.insert(compile_callback.getAddress());
+}
+
+void JIT::precompileIR()
+{
+  for (const JITTargetAddress &addr : callback_addrs) {
+    compile_callback_manager->executeCompileCallback(addr);
+  }
+}
+
+void JIT::precompileDumpIR()
+{
+  debug_print_ir = true;
+  precompileIR();
+  debug_print_ir = false;
 }
 
 } // end namespace JITSim

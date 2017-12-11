@@ -45,6 +45,7 @@ private:
   LLVMStruct co_in;
   LLVMStruct co_out;
   LLVMStruct us_in;
+  LLVMStruct gv_in;
 
   std::vector<uint8_t> state;
 
@@ -70,6 +71,8 @@ public:
 
   void updateState();
   const LLVMStruct & computeOutput();
+
+  void dumpIR();
 };
 
 }

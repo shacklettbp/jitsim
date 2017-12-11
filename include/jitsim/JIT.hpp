@@ -25,7 +25,7 @@
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <algorithm>
 #include <memory>
-#include <set>
+#include <unordered_set>
 #include <string>
 #include <vector>
 
@@ -52,8 +52,11 @@ private:
 
   using ModuleHandle = decltype(debug_layer)::ModuleHandleT;
   std::vector<ModuleHandle> modules;
+  std::unordered_set<llvm::JITTargetAddress> callback_addrs;
 
   void removeModule(ModuleHandle handle);
+
+  bool debug_print_ir;
 
 public:
 
@@ -66,6 +69,9 @@ public:
 
   void addModule(std::unique_ptr<llvm::Module> module);
   void addLazyFunction(std::string name, std::function<std::unique_ptr<llvm::Module>()> module_generator);
+
+  void precompileIR();
+  void precompileDumpIR();
 };
 
 } // end namespace JITSim

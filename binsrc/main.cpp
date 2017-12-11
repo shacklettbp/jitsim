@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
   circuit.print();
 
   JITFrontend jit(circuit);
+  jit.dumpIR();
+
   LLVMStruct out = jit.computeOutput();
   cout << "Starting output: ";
   out.dump();
