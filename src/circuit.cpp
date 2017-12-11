@@ -240,6 +240,7 @@ Definition::Definition(const string &name_,
                        IFace &&iface,
                        const Primitive &primitive)
   : name(name_),
+    safe_name(cleanName(name)),
     interface(move(iface)),
     instances(),
     instance_lookup(),

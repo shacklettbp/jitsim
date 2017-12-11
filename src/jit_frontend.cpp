@@ -6,6 +6,12 @@ namespace JITSim {
 
 using namespace std;
 
+static bool isPrimitive(const Definition &definition)
+{
+  const SimInfo &siminfo = definition.getSimInfo();
+  return siminfo.isPrimitive();
+}
+
 template <typename T>
 LLVMStruct::LLVMStruct(const vector<T> &members,
                        const llvm::DataLayout &data_layout,
@@ -79,6 +85,32 @@ void LLVMStruct::dump() const
   }
 }
 
+void JITFrontend::addDefinitionFunctions(const Definition &defn)
+{
+  jit.addLazyFunction(defn.getSafeName() + "_update_state", [this, &defn]() {
+    return MakeUpdateState(builder, defn);
+  });
+
+  jit.addLazyFunction(defn.getSafeName() + "_compute_output", [this, &defn]() {
+    return MakeComputeOutput(builder, defn);
+  });
+}
+
+void JITFrontend::addWrappers(const Definition &top)
+{
+  jit.addLazyFunction("update_state", [this, &top]() {
+    return MakeUpdateStateWrapper(builder, top);
+  });
+
+  jit.addLazyFunction("compute_output", [this, &top]() {
+    return MakeComputeOutputWrapper(builder, top);
+  });
+
+  jit.addLazyFunction("get_values", [this, &top]() {
+    return MakeGetValuesWrapper(builder, top);
+  });
+}
+
 JITFrontend::JITFrontend(const Circuit &circuit, const Definition &top)
   : target_machine(llvm::EngineBuilder().selectTarget()),
     data_layout(target_machine->createDataLayout()),
@@ -87,38 +119,29 @@ JITFrontend::JITFrontend(const Circuit &circuit, const Definition &top)
     co_in(top.getSimInfo().getOutputSources(), data_layout, builder.getContext()),
     co_out(top.getIFace().getSinks(), data_layout, builder.getContext()),
     us_in(top.getSimInfo().getStateSources(), data_layout, builder.getContext()),
-    jit_modules(),
     state(top.getSimInfo().allocateState()),
     compute_output_ptr(nullptr),
     update_state_ptr(nullptr)
 {
-  vector<ModuleEnvironment> ir_modules = ModulesForCircuit(builder, circuit);
-  ir_modules.emplace_back(GenerateWrapper(builder, top));
-
-  for (const ModuleEnvironment &ir_mod : ir_modules) {
-    cout << "\n=================\n\n";
-    cout << ir_mod.getIRStr();
+  for (const Definition &defn : circuit.getDefinitions()) {
+    if (!isPrimitive(defn)) {
+      addDefinitionFunctions(defn);
+    } else {
+      // FIXME handle primitives that want to provide function definitions
+    }
   }
-  cout << "\n=================\n";
-
-  for (ModuleEnvironment &ir_mod : ir_modules) {
-    jit_modules.push_back(jit.addModule(ir_mod.returnModule()));
-  }
+  addWrappers(top);
 
   compute_output_ptr = (WrapperComputeOutputFn)jit.getSymbolAddress("compute_output");
   update_state_ptr = (WrapperUpdateStateFn)jit.getSymbolAddress("update_state");
+  get_values_ptr = (WrapperGetValuesFn)jit.getSymbolAddress("get_values");
+
+  assert(compute_output_ptr && update_state_ptr);
 }
 
 JITFrontend::JITFrontend(const Circuit &circuit)
   : JITFrontend(circuit, circuit.getTopDefinition())
 {}
-
-JITFrontend::~JITFrontend()
-{
-  for (auto &handle : jit_modules) {
-    jit.removeModule(handle);
-  }
-}
 
 void JITFrontend::setInput(const std::string &name, uint64_t val)
 {

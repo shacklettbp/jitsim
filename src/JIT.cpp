@@ -17,31 +17,43 @@ JIT::JIT(TargetMachine &target_machine, const DataLayout &dl)
   : data_layout(dl),
     compile_callback_manager(
       createLocalCompileCallbackManager(target_machine.getTargetTriple(), 0)),
+    indirect_stubs_manager(
+      createLocalIndirectStubsManagerBuilder(target_machine.getTargetTriple())()),
     object_layer([]() { return std::make_shared<SectionMemoryManager>(); }),
     compile_layer(object_layer, SimpleCompiler(target_machine)),
     optimize_layer(compile_layer,
                   [this](std::shared_ptr<Module> module) {
                     return optimizeModule(std::move(module));
                   }),
-    cod_layer(optimize_layer,
-              [](Function &fn) { return std::set<Function*>({&fn}); },
-              *compile_callback_manager,
-              createLocalIndirectStubsManagerBuilder(target_machine.getTargetTriple()))
+    debug_layer(optimize_layer,
+                [this](std::shared_ptr<Module> module) {
+                  return debugModule(std::move(module));
+                })
 {
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
-JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module) {
+JIT::~JIT()
+{
+  for (ModuleHandle &handle : modules) {
+    removeModule(handle);
+  }
+}
+
+void JIT::addModule(std::unique_ptr<Module> module) {
   assert(module->getDataLayout() == data_layout);
 
   // Build our symbol resolver:
   // Lambda 1: Look back into the JIT itself to find symbols that are part of
   //           the same "logical dylib".
   // Lambda 2: Search for external symbols in the host process.
-  auto Resolver = createLambdaResolver(
+  auto resolver = createLambdaResolver(
     [&](const std::string &name) {
-      if (auto sym = cod_layer.findSymbol(name, false))
+      if (auto sym = indirect_stubs_manager->findStub(name, false)) {
         return sym;
+      } else if (auto sym = debug_layer.findSymbol(name, false)) {
+        return sym;
+      }
       return JITSymbol(nullptr);
     },  
     [](const std::string &name) {
@@ -51,12 +63,19 @@ JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module) {
     }); 
 
   // Add the set to the JIT with the resolver we created above and a newly
-  // created SectionMemoryManager.
-  return cantFail(cod_layer.addModule(std::move(module), std::move(Resolver)));
+  // return created SectionMemoryManager.
+  ModuleHandle handle = cantFail(debug_layer.addModule(std::move(module), std::move(resolver)));
+  modules.push_back(handle); // FIXME need to put this into a more intelligent data type 
 }
 
 JITSymbol JIT::findSymbol(const std::string name) {
-  return cod_layer.findSymbol(mangle(name), true);
+  if (auto sym = indirect_stubs_manager->findStub(mangle(name), true)) {
+    return sym;
+  } else if (auto sym = debug_layer.findSymbol(mangle(name), true)) {
+    return sym;
+  } else {
+    return JITSymbol(nullptr);
+  }
 }   
 
 JITTargetAddress JIT::getSymbolAddress(const std::string name) {
@@ -64,14 +83,7 @@ JITTargetAddress JIT::getSymbolAddress(const std::string name) {
 } 
 
 void JIT::removeModule(ModuleHandle handle) {
-  cantFail(cod_layer.removeModule(handle));
-}
-
-std::string JIT::mangle(const std::string name) {
-  std::string mangled_name;
-  raw_string_ostream mangled_name_stream(mangled_name);
-  Mangler::getNameWithPrefix(mangled_name_stream, name, data_layout);
-  return mangled_name_stream.str();
+  cantFail(debug_layer.removeModule(handle));
 }
 
 std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> module) {
@@ -91,6 +103,43 @@ std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> module) {
     fpm->run(fn);
 
   return module;
+}
+
+std::shared_ptr<Module> JIT::debugModule(std::shared_ptr<Module> module)
+{
+  return module;
+}
+
+std::string JIT::mangle(const std::string name) {
+  std::string mangled_name;
+  raw_string_ostream mangled_name_stream(mangled_name);
+  Mangler::getNameWithPrefix(mangled_name_stream, name, data_layout);
+  return mangled_name_stream.str();
+}
+
+void JIT::addLazyFunction(std::string name,
+                          std::function<std::unique_ptr<Module>()> module_generator)
+{
+  auto compile_callback = compile_callback_manager->getCompileCallback();
+
+  cantFail(indirect_stubs_manager->createStub(mangle(name),
+                                              compile_callback.getAddress(),
+                                              JITSymbolFlags::Exported));
+
+  compile_callback.setCompileAction([this, name, module_generator]() {
+    auto M = module_generator();
+    addModule(std::move(M));
+    auto symbol = debug_layer.findSymbol(name, false);
+    assert(symbol && "Couldn't find compiled function?");
+
+    JITTargetAddress addr = cantFail(symbol.getAddress());
+    if (auto err = indirect_stubs_manager->updatePointer(mangle(name), addr)) {
+      logAllUnhandledErrors(std::move(err), errs(),
+                            "Error updating function pointer: ");
+    }
+
+    return addr;
+  });
 }
 
 } // end namespace JITSim
