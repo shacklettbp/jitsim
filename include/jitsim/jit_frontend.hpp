@@ -51,7 +51,7 @@ private:
 
   using WrapperUpdateStateFn = void (*)(const uint8_t *input, uint8_t *state);
   using WrapperComputeOutputFn = void (*)(const uint8_t *input, uint8_t *output, uint8_t *state);
-  using WrapperGetValuesFn = void (*)(const uint8_t *input, uint8_t *state);
+  using WrapperGetValuesFn = void (*)(const uint8_t *input, uint8_t *state, uint8_t *values);
 
   WrapperComputeOutputFn compute_output_ptr;
   WrapperUpdateStateFn update_state_ptr;

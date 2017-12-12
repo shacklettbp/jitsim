@@ -593,8 +593,8 @@ std::unique_ptr<Module> MakeGetValuesWrapper(Builder &builder, const Definition 
   func.addBasicBlock("entry");
 
   Value *inputs = func.getFunction()->arg_begin();
-  Value *value_store = func.getFunction()->arg_begin() + 1;
-  Value *state = func.getFunction()->arg_begin() + 2;
+  Value *state = func.getFunction()->arg_begin() + 1;
+  Value *value_store = func.getFunction()->arg_begin() + 2;
 
   const std::vector<const Source *> &output_dep_sources = defn.getSimInfo().getOutputSources();
   const std::vector<const Source *> &state_dep_sources = defn.getSimInfo().getStateSources();
