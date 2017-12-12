@@ -10,6 +10,8 @@ namespace JITSim {
 
 std::unique_ptr<llvm::Module> MakeComputeOutput(Builder &builder, const Definition &definition);
 std::unique_ptr<llvm::Module> MakeUpdateState(Builder &builder, const Definition &definition);
+std::unique_ptr<llvm::Module> MakeOutputDeps(Builder &builder, const Definition &definition);
+std::unique_ptr<llvm::Module> MakeStateDeps(Builder &builder, const Definition &definition);
 std::unique_ptr<llvm::Module> MakeComputeOutputWrapper(Builder &builder, const Definition &defn);
 std::unique_ptr<llvm::Module> MakeUpdateStateWrapper(Builder &builder, const Definition &defn);
 std::unique_ptr<llvm::Module> MakeGetValuesWrapper(Builder &builder, const Definition &defn);
