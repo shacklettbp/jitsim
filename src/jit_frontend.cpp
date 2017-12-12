@@ -94,6 +94,14 @@ void JITFrontend::addDefinitionFunctions(const Definition &defn)
   jit.addLazyFunction(defn.getSafeName() + "_compute_output", [this, &defn]() {
     return MakeComputeOutput(builder, defn);
   });
+
+  jit.addLazyFunction(defn.getSafeName() + "_state_deps", [this, &defn]() {
+    return MakeStateDeps(builder, defn);
+  });
+
+  jit.addLazyFunction(defn.getSafeName() + "_output_deps", [this, &defn]() {
+    return MakeOutputDeps(builder, defn);
+  });
 }
 
 void JITFrontend::addWrappers(const Definition &top)

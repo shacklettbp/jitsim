@@ -160,7 +160,8 @@ void SimInfo::analyzeOutputDeps(const IFace &defn_iface)
   analyzeDependencies(defn_iface, frontier, output_deps, output_dep_srcs);
 }
 
-void SimInfo::calculateStateOffsets() {
+void SimInfo::calculateStateOffsets()
+{
   unsigned offset = 0;
   for (const Instance *inst : stateful_insts) {
     offset_map[inst] = offset;
@@ -168,6 +169,15 @@ void SimInfo::calculateStateOffsets() {
   }
 
   num_state_bytes = offset;
+}
+
+void SimInfo::calculateInstanceNumbers(const vector<Instance> &instances)
+{
+  unsigned num = 0;
+  for (const Instance &inst : instances) {
+    inst_nums[&inst] = num;
+    num++;
+  }
 }
 
 SimInfo::SimInfo(const IFace &defn_iface, const vector<Instance> &instances)
@@ -185,6 +195,7 @@ SimInfo::SimInfo(const IFace &defn_iface, const vector<Instance> &instances)
     analyzeStateDeps(defn_iface);
     calculateStateOffsets();
   }
+  calculateInstanceNumbers(instances);
 
   analyzeOutputDeps(defn_iface);
 }
