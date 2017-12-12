@@ -97,10 +97,14 @@ void JITFrontend::addDefinitionFunctions(const Definition &defn)
 
   jit.addLazyFunction(defn.getSafeName() + "_state_deps", [this, &defn]() {
     return MakeStateDeps(builder, defn);
+  }, [this](auto module) {
+    return module;
   });
 
   jit.addLazyFunction(defn.getSafeName() + "_output_deps", [this, &defn]() {
     return MakeOutputDeps(builder, defn);
+  }, [this](auto module) {
+    return module;
   });
 }
 
