@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <memory>
 #include <unordered_set>
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -51,28 +52,31 @@ private:
   std::string mangle(const std::string name);
 
   using ModuleHandle = decltype(debug_layer)::ModuleHandleT;
-  std::vector<ModuleHandle> modules;
+  std::unordered_map<std::string, std::pair<ModuleHandle, std::shared_ptr<llvm::Module>>> debug_modules;
+  std::unordered_map<std::string, TransformFunction> debug_functions;
   std::unordered_set<llvm::JITTargetAddress> callback_addrs;
 
   void removeModule(ModuleHandle handle);
+  llvm::JITTargetAddress updateStub(const std::string &name);
 
   bool debug_print_ir;
 
 public:
 
   JIT(llvm::TargetMachine &target_machine, const llvm::DataLayout &data_layout);
-  ~JIT();
 
   llvm::JITSymbol findSymbol(const std::string name);
 
   llvm::JITTargetAddress getSymbolAddress(const std::string name);
 
-  ModuleHandle addModule(std::unique_ptr<llvm::Module> module, bool is_debug = false);
+  ModuleHandle addModule(std::shared_ptr<llvm::Module> module);
   void addLazyFunction(std::string name, std::function<std::unique_ptr<llvm::Module>()> module_generator,
                        TransformFunction debug_transform = nullptr);
 
   void precompileIR();
   void precompileDumpIR();
+
+  void purgeDebugModules();
 };
 
 } // end namespace JITSim

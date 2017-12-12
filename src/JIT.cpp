@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <llvm/Support/raw_os_ostream.h>
+#include <llvm/Transforms/Utils/Cloning.h>
 
 namespace JITSim {
 
@@ -36,14 +37,7 @@ JIT::JIT(TargetMachine &target_machine, const DataLayout &dl)
   llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
-JIT::~JIT()
-{
-  for (ModuleHandle &handle : modules) {
-    removeModule(handle);
-  }
-}
-
-JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module, bool is_debug) {
+JIT::ModuleHandle JIT::addModule(std::shared_ptr<Module> module) {
   assert(module->getDataLayout() == data_layout);
 
   // Build our symbol resolver:
@@ -68,7 +62,6 @@ JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module, bool is_debug) 
   // Add the set to the JIT with the resolver we created above and a newly
   // return created SectionMemoryManager.
   ModuleHandle handle = cantFail(debug_layer.addModule(std::move(module), std::move(resolver)));
-  modules.push_back(handle); // FIXME need to put this into a more intelligent data type 
 
   return handle;
 }
@@ -117,7 +110,13 @@ std::shared_ptr<Module> JIT::debugModule(std::shared_ptr<Module> module)
     outs() << *module;
     outs() << "\n==============\n";
   }
-  return module;
+
+  auto iter = debug_functions.find(module->getName());
+  if (iter == debug_functions.end()) {
+    return module;
+  }
+
+  return iter->second(move(CloneModule(module.get())));
 }
 
 std::string JIT::mangle(const std::string name) {
@@ -127,38 +126,55 @@ std::string JIT::mangle(const std::string name) {
   return mangled_name_stream.str();
 }
 
+JITTargetAddress JIT::updateStub(const std::string &name)
+{
+  auto symbol = debug_layer.findSymbol(name, false);
+  assert(symbol && "Couldn't find compiled function?");
+
+  JITTargetAddress addr = cantFail(symbol.getAddress());
+  if (auto err = indirect_stubs_manager->updatePointer(mangle(name), addr)) {
+    logAllUnhandledErrors(std::move(err), errs(),
+                          "Error updating function pointer: ");
+  }
+
+  return addr;
+}
+
 void JIT::addLazyFunction(std::string name,
                           std::function<std::unique_ptr<Module>()> module_generator,
                           JIT::TransformFunction debug_transform)
 {
   auto compile_callback = compile_callback_manager->getCompileCallback();
+  JITTargetAddress callback_address = compile_callback.getAddress();
 
   cantFail(indirect_stubs_manager->createStub(mangle(name),
-                                              compile_callback.getAddress(),
+                                              callback_address,
                                               JITSymbolFlags::Exported));
 
-  compile_callback.setCompileAction([this, name, module_generator]() {
-    auto M = module_generator();
-    addModule(std::move(M));
+  bool is_debug = debug_transform != nullptr;
+  if (is_debug) {
+    debug_functions[name] = move(debug_transform);
+  }
 
-
-    auto symbol = debug_layer.findSymbol(name, false);
-    assert(symbol && "Couldn't find compiled function?");
-
-    JITTargetAddress addr = cantFail(symbol.getAddress());
-    if (auto err = indirect_stubs_manager->updatePointer(mangle(name), addr)) {
-      logAllUnhandledErrors(std::move(err), errs(),
-                            "Error updating function pointer: ");
+  compile_callback.setCompileAction([this, name, module_generator, is_debug, callback_address]() {
+    auto module = module_generator();
+    std::shared_ptr<Module> shared_module(std::move(module));
+    auto compiled_handle = addModule(shared_module);
+    if (is_debug) {
+      debug_modules[name] = make_pair(compiled_handle, move(shared_module));
     }
 
-    return addr;
+    callback_addrs.erase(callback_address);
+
+    return updateStub(name);
   });
-  callback_addrs.insert(compile_callback.getAddress());
+  callback_addrs.insert(callback_address);
 }
 
 void JIT::precompileIR()
 {
-  for (const JITTargetAddress &addr : callback_addrs) {
+  std::unordered_set<JITTargetAddress> addrs_cpy(callback_addrs);
+  for (const JITTargetAddress &addr : addrs_cpy) {
     compile_callback_manager->executeCompileCallback(addr);
   }
 }
@@ -168,6 +184,29 @@ void JIT::precompileDumpIR()
   debug_print_ir = true;
   precompileIR();
   debug_print_ir = false;
+}
+
+void JIT::purgeDebugModules()
+{
+  for (auto &elem : debug_modules) {
+    auto name = elem.first;
+    auto compiled_handle = elem.second.first;
+    auto ir_module = elem.second.second;
+    removeModule(compiled_handle);
+
+    auto compile_callback = compile_callback_manager->getCompileCallback();
+    compile_callback.setCompileAction([this, name, ir_module] {
+      auto new_handle = addModule(ir_module);
+      debug_modules[name].first = new_handle;
+
+      return updateStub(name);
+    });
+
+    if (auto err = indirect_stubs_manager->updatePointer(mangle(name), compile_callback.getAddress())) {
+      logAllUnhandledErrors(std::move(err), errs(),
+                            "Error updating function pointer: ");
+    }
+  }
 }
 
 } // end namespace JITSim
