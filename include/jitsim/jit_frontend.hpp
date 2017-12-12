@@ -39,8 +39,8 @@ private:
   std::unique_ptr<llvm::TargetMachine> target_machine;
   const llvm::DataLayout data_layout;
 
-  JIT jit;
   Builder builder;
+  JIT jit;
 
   LLVMStruct co_in;
   LLVMStruct co_out;
@@ -71,6 +71,8 @@ public:
 
   void updateState();
   const LLVMStruct & computeOutput();
+
+  llvm::APInt getValue(const std::vector<std::string> &inst_names, const std::string &input);
 
   void dumpIR();
 };

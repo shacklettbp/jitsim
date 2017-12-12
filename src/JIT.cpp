@@ -1,5 +1,6 @@
 #include <jitsim/JIT.hpp>
 #include <iostream>
+#include <tuple>
 
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Transforms/Utils/Cloning.h>
@@ -161,7 +162,7 @@ void JIT::addLazyFunction(std::string name,
     std::shared_ptr<Module> shared_module(std::move(module));
     auto compiled_handle = addModule(shared_module);
     if (is_debug) {
-      debug_modules[name] = make_pair(compiled_handle, move(shared_module));
+      debug_modules.emplace_back(name, compiled_handle, shared_module);
     }
 
     callback_addrs.erase(callback_address);
@@ -188,16 +189,19 @@ void JIT::precompileDumpIR()
 
 void JIT::purgeDebugModules()
 {
-  for (auto &elem : debug_modules) {
-    auto name = elem.first;
-    auto compiled_handle = elem.second.first;
-    auto ir_module = elem.second.second;
+  auto debug_copy(move(debug_modules));
+  debug_modules.clear();
+
+  for (auto &elem : debug_copy) {
+    auto name = std::get<0>(elem);
+    auto compiled_handle = std::get<1>(elem);
+    auto ir_module = std::get<2>(elem);
     removeModule(compiled_handle);
 
     auto compile_callback = compile_callback_manager->getCompileCallback();
     compile_callback.setCompileAction([this, name, ir_module] {
       auto new_handle = addModule(ir_module);
-      debug_modules[name].first = new_handle;
+      debug_modules.emplace_back(name, new_handle, ir_module);
 
       return updateStub(name);
     });
