@@ -43,7 +43,7 @@ JIT::~JIT()
   }
 }
 
-void JIT::addModule(std::unique_ptr<Module> module) {
+JIT::ModuleHandle JIT::addModule(std::unique_ptr<Module> module, bool is_debug) {
   assert(module->getDataLayout() == data_layout);
 
   // Build our symbol resolver:
@@ -69,6 +69,8 @@ void JIT::addModule(std::unique_ptr<Module> module) {
   // return created SectionMemoryManager.
   ModuleHandle handle = cantFail(debug_layer.addModule(std::move(module), std::move(resolver)));
   modules.push_back(handle); // FIXME need to put this into a more intelligent data type 
+
+  return handle;
 }
 
 JITSymbol JIT::findSymbol(const std::string name) {
@@ -126,7 +128,8 @@ std::string JIT::mangle(const std::string name) {
 }
 
 void JIT::addLazyFunction(std::string name,
-                          std::function<std::unique_ptr<Module>()> module_generator)
+                          std::function<std::unique_ptr<Module>()> module_generator,
+                          JIT::TransformFunction debug_transform)
 {
   auto compile_callback = compile_callback_manager->getCompileCallback();
 
@@ -137,6 +140,8 @@ void JIT::addLazyFunction(std::string name,
   compile_callback.setCompileAction([this, name, module_generator]() {
     auto M = module_generator();
     addModule(std::move(M));
+
+
     auto symbol = debug_layer.findSymbol(name, false);
     assert(symbol && "Couldn't find compiled function?");
 
