@@ -28,6 +28,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <string>
+#include <iostream>
 #include <vector>
 
 namespace JITSim {
@@ -52,7 +53,7 @@ private:
   std::string mangle(const std::string name);
 
   using ModuleHandle = decltype(debug_layer)::ModuleHandleT;
-  std::unordered_map<std::string, std::pair<ModuleHandle, std::shared_ptr<llvm::Module>>> debug_modules;
+  std::vector<std::tuple<std::string, ModuleHandle, std::shared_ptr<llvm::Module>>> debug_modules;
   std::unordered_map<std::string, TransformFunction> debug_functions;
   std::unordered_set<llvm::JITTargetAddress> callback_addrs;
 

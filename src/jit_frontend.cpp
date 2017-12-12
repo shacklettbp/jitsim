@@ -126,8 +126,8 @@ void JITFrontend::addWrappers(const Definition &top)
 JITFrontend::JITFrontend(const Circuit &circuit, const Definition &top)
   : target_machine(llvm::EngineBuilder().selectTarget()),
     data_layout(target_machine->createDataLayout()),
-    jit(*target_machine, data_layout),
     builder(data_layout, *target_machine),
+    jit(*target_machine, data_layout),
     co_in(top.getSimInfo().getOutputSources(), data_layout, builder.getContext()),
     co_out(top.getIFace().getSinks(), data_layout, builder.getContext()),
     us_in(top.getSimInfo().getStateSources(), data_layout, builder.getContext()),
@@ -177,6 +177,13 @@ const LLVMStruct & JITFrontend::computeOutput()
 {
   compute_output_ptr(co_in.getData(), co_out.getData(), state.data());
   return co_out;
+}
+
+llvm::APInt JITFrontend::getValue(const vector<string> &inst_names, const string &input)
+{
+  jit.purgeDebugModules();
+
+  return llvm::APInt(64, 0);
 }
 
 void JITFrontend::dumpIR()
