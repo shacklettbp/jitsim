@@ -429,6 +429,10 @@ std::unique_ptr<Module> MakeOutputDeps(Builder &builder, const Definition &defin
     makeInstanceOutputDeps(inst, defn_info, output_deps, state_ptr, inst_offset, value_store);
   }
 
+  BasicBlock *ret_block = output_deps.addBasicBlock("return", false);
+  output_deps.getIRBuilder().CreateBr(ret_block);
+  output_deps.setCurBasicBlock(ret_block);
+
   const std::vector<JITSim::Sink> & sinks = definition.getIFace().getSinks();
   Value *ret_val = UndefValue::get(od_type->getReturnType());
 
@@ -479,6 +483,10 @@ std::unique_ptr<Module> MakeStateDeps(Builder &builder, const Definition &defini
   for (const Instance *inst : defn_info.getStatefulInstances()) {
     makeInstanceStateDeps(inst, defn_info, state_deps, state_ptr, inst_offset, value_store);
   }
+
+  BasicBlock *ret_block = state_deps.addBasicBlock("return", false);
+  state_deps.getIRBuilder().CreateBr(ret_block);
+  state_deps.setCurBasicBlock(ret_block);
 
   state_deps.getIRBuilder().CreateRetVoid();
   assert(!state_deps.verify());
