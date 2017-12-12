@@ -64,12 +64,18 @@ llvm::APInt LLVMStruct::getValue(int idx) const
 {
   const uint8_t *ptr = getMemberAddr(idx);
   int bits = getMemberBits(idx);
+  int bytes = bits / 8;
+  if (bits % 8 != 0) {
+    bytes++;
+  }
   int num64s = bits / 64;
   if (bits % 64 != 0) {
     num64s++;
   }
+  vector<uint64_t> safe_arr(num64s, 0);
+  memcpy(safe_arr.data(), ptr, bytes);
 
-  return llvm::APInt(bits, llvm::ArrayRef<uint64_t>((const uint64_t *)ptr, num64s));
+  return llvm::APInt(bits, llvm::ArrayRef<uint64_t>(safe_arr.data(), num64s));
 }
 
 llvm::APInt LLVMStruct::getValue(const string &name) const
@@ -170,7 +176,7 @@ void JITFrontend::setInput(const std::string &name, llvm::APInt val)
 
 void JITFrontend::updateState()
 {
-  update_state_ptr(co_in.getData(), state.data());
+  update_state_ptr(us_in.getData(), state.data());
 }
 
 const LLVMStruct & JITFrontend::computeOutput()
@@ -182,6 +188,7 @@ const LLVMStruct & JITFrontend::computeOutput()
 llvm::APInt JITFrontend::getValue(const vector<string> &inst_names, const string &input)
 {
   jit.purgeDebugModules();
+  get_values_ptr(gv_in.getData(), state.data(), nullptr);
 
   return llvm::APInt(64, 0);
 }
