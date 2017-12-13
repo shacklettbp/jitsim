@@ -51,11 +51,26 @@ private:
 
   using WrapperUpdateStateFn = void (*)(const uint8_t *input, uint8_t *state);
   using WrapperComputeOutputFn = void (*)(const uint8_t *input, uint8_t *output, uint8_t *state);
-  using WrapperGetValuesFn = void (*)(const uint8_t *input, uint8_t *state, uint8_t *values);
+  using WrapperGetValuesFn = void (*)(const uint8_t *input, uint8_t *state);
 
   WrapperComputeOutputFn compute_output_ptr;
   WrapperUpdateStateFn update_state_ptr;
   WrapperGetValuesFn get_values_ptr;
+
+  struct DebugValue {
+    unsigned inst_num;
+    std::string input_name;
+    std::vector<uint8_t> store;
+  };
+
+  struct DebugInfo {
+    std::unordered_map<const Definition *, std::vector<DebugValue>> debug_values;
+    unsigned cur_offset;
+  } debug_info;
+
+  const Definition *top;
+
+  std::vector<uint8_t> & updateDebugInfo(const std::vector<std::string> &inst_names, const std::string &input);
 
   void addDefinitionFunctions(const Definition &defn);
   void addWrappers(const Definition &top);

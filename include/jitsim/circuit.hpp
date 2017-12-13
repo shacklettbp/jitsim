@@ -171,6 +171,8 @@ public:
   const std::vector<ClkSource> & getClkSources() const { return clk_sources; }
   const std::vector<ClkSink> & getClkSinks() const { return clk_sinks; }
 
+  bool hasSource(const std::string &name) const { return source_lookup.count(name); }
+  bool hasSink(const std::string &name) const { return sink_lookup.count(name); }
   const Source * getSource(const std::string &name) const;
   const Sink * getSink(const std::string &name) const;
   Source * getSource(const std::string &name);

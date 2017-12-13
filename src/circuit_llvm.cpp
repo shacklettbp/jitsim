@@ -78,7 +78,6 @@ static FunctionType * makeOutputDepsType(const Definition &definition, ModuleEnv
   }
 
   arg_types.push_back(Type::getInt64Ty(mod_env.getContext()));
-  arg_types.push_back(Type::getInt8PtrTy(mod_env.getContext()));
 
   return FunctionType::get(makeReturnType(definition, mod_env), arg_types, false);
 }
@@ -93,7 +92,6 @@ static FunctionType * makeStateDepsType(const Definition &definition, ModuleEnvi
   std::vector<Type *> arg_types = getArgTypes(definition.getSimInfo().getStateSources(), mod_env);
   arg_types.push_back(Type::getInt8PtrTy(mod_env.getContext()));
   arg_types.push_back(Type::getInt64Ty(mod_env.getContext()));
-  arg_types.push_back(Type::getInt8PtrTy(mod_env.getContext()));
 
   return FunctionType::get(Type::getVoidTy(mod_env.getContext()), arg_types, false);
 }
@@ -316,7 +314,7 @@ std::unique_ptr<Module> MakeUpdateState(Builder &builder, const Definition &defi
   return mod_env.returnModule();
 }
 
-static void makeInstanceOutputDeps(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, Value *base_state, Value *inst_offset, Value *value_store)
+static void makeInstanceOutputDeps(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, Value *base_state, Value *inst_offset)
 {
   const SimInfo &inst_info = inst->getDefinition().getSimInfo();
   const InstanceIFace &iface = inst->getIFace();
@@ -326,7 +324,9 @@ static void makeInstanceOutputDeps(const Instance *inst, const SimInfo &defn_inf
 
   for (const Source *src : inst_info.getOutputSources()) {
     const Sink *sink = iface.getSink(src);
-    argument_values.push_back(makeValueReference(sink->getSelect(), env));
+    Value *val = makeValueReference(sink->getSelect(), env);
+    //val->setName(inst->getName() + "_"  + sink->getName());
+    argument_values.push_back(val);
   }
 
   if (inst_info.isStateful()) {
@@ -341,7 +341,6 @@ static void makeInstanceOutputDeps(const Instance *inst, const SimInfo &defn_inf
   } else {
     inst_offset = env.getIRBuilder().CreateAdd(inst_offset, ConstantInt::get(env.getContext(), APInt(64, defn_info.getInstNum(inst))));
     argument_values.push_back(inst_offset);
-    argument_values.push_back(value_store);
 
     std::string inst_output_deps = inst->getDefinition().getSafeName() + "_output_deps";
     Function *inst_func = env.getModule().getFunctionDecl(inst_output_deps);
@@ -357,11 +356,14 @@ static void makeInstanceOutputDeps(const Instance *inst, const SimInfo &defn_inf
   }
 
   for (unsigned i = 0; i < ret_values.size(); i++) {
-    env.addValue(&sources[i], ret_values[i]);
+    const Source *src = &sources[i];
+    Value *val = ret_values[i];
+    val->setName(inst->getName() + "_" + src->getName());
+    env.addValue(src, val);
   }
 }
 
-static void makeInstanceStateDeps(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, Value *base_state, Value *inst_offset, Value *value_store)
+static void makeInstanceStateDeps(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, Value *base_state, Value *inst_offset)
 {
   const SimInfo &inst_info = inst->getDefinition().getSimInfo();
   const InstanceIFace &iface = inst->getIFace();
@@ -373,7 +375,9 @@ static void makeInstanceStateDeps(const Instance *inst, const SimInfo &defn_info
 
   for (const Source *src : inst_info.getStateSources()) {
     const Sink *sink = iface.getSink(src);
-    argument_values.push_back(makeValueReference(sink->getSelect(), env));
+    Value *val = makeValueReference(sink->getSelect(), env);
+    //val->setName(inst->getName() + "_" + sink->getName());
+    argument_values.push_back(val);
   }
 
   Value *state_ptr = incrementStatePtr(base_state, defn_info.getOffset(inst), env);
@@ -381,7 +385,6 @@ static void makeInstanceStateDeps(const Instance *inst, const SimInfo &defn_info
 
   inst_offset = env.getIRBuilder().CreateAdd(inst_offset, ConstantInt::get(env.getContext(), APInt(64, defn_info.getInstNum(inst))));
   argument_values.push_back(inst_offset);
-  argument_values.push_back(value_store);
 
   std::string inst_state_deps = inst->getDefinition().getSafeName() + "_state_deps";
   Function *inst_func = env.getModule().getFunctionDecl(inst_state_deps);
@@ -405,7 +408,7 @@ std::unique_ptr<Module> MakeOutputDeps(Builder &builder, const Definition &defin
 
   const std::vector<const Source *> &sources = defn_info.getOutputSources();
   auto arg = output_deps.getFunction()->arg_begin();
-  assert(output_deps.getFunction()->arg_size() == sources.size() + defn_info.isStateful() + 2);
+  assert(output_deps.getFunction()->arg_size() == sources.size() + defn_info.isStateful() + 1);
 
   for (unsigned i = 0; i < sources.size(); i++, arg++) {
     const Source *src = sources[i];
@@ -418,15 +421,15 @@ std::unique_ptr<Module> MakeOutputDeps(Builder &builder, const Definition &defin
   if (defn_info.isStateful()) {
     state_ptr = arg;
     state_ptr->setName("state_ptr");
+    arg++;
   }
-  arg++;
   Value *inst_offset = arg;
+  inst_offset->setName("inst_offset");
   arg++;
-  Value *value_store = arg;
 
   const std::vector<const Instance *> &output_instances = defn_info.getOutputDeps();
   for (const Instance *inst : output_instances) {
-    makeInstanceOutputDeps(inst, defn_info, output_deps, state_ptr, inst_offset, value_store);
+    makeInstanceOutputDeps(inst, defn_info, output_deps, state_ptr, inst_offset);
   }
 
   BasicBlock *ret_block = output_deps.addBasicBlock("return", false);
@@ -460,7 +463,7 @@ std::unique_ptr<Module> MakeStateDeps(Builder &builder, const Definition &defini
 
   const std::vector<const Source *> & sources = defn_info.getStateSources();
   auto arg = state_deps.getFunction()->arg_begin();
-  assert(state_deps.getFunction()->arg_size() == sources.size() + 3);
+  assert(state_deps.getFunction()->arg_size() == sources.size() + 2);
 
   for (unsigned i = 0; i < sources.size(); i++, arg++) {
     const Source *src = sources[i];
@@ -473,15 +476,15 @@ std::unique_ptr<Module> MakeStateDeps(Builder &builder, const Definition &defini
   state_ptr->setName("state_ptr");
   arg++;
   Value *inst_offset = arg;
+  inst_offset->setName("inst_offset");
   arg++;
-  Value *value_store = arg;
 
   for (const Instance *inst : defn_info.getStateDeps()) {
-    makeInstanceOutputDeps(inst, defn_info, state_deps, state_ptr, inst_offset, value_store);
+    makeInstanceOutputDeps(inst, defn_info, state_deps, state_ptr, inst_offset);
   }
 
   for (const Instance *inst : defn_info.getStatefulInstances()) {
-    makeInstanceStateDeps(inst, defn_info, state_deps, state_ptr, inst_offset, value_store);
+    makeInstanceStateDeps(inst, defn_info, state_deps, state_ptr, inst_offset);
   }
 
   BasicBlock *ret_block = state_deps.addBasicBlock("return", false);
@@ -594,7 +597,6 @@ std::unique_ptr<Module> MakeGetValuesWrapper(Builder &builder, const Definition 
 
   Value *inputs = func.getFunction()->arg_begin();
   Value *state = func.getFunction()->arg_begin() + 1;
-  Value *value_store = func.getFunction()->arg_begin() + 2;
 
   const std::vector<const Source *> &output_dep_sources = defn.getSimInfo().getOutputSources();
   const std::vector<const Source *> &state_dep_sources = defn.getSimInfo().getStateSources();
@@ -624,11 +626,9 @@ std::unique_ptr<Module> MakeGetValuesWrapper(Builder &builder, const Definition 
 
   output_deps_args.push_back(state);
   output_deps_args.push_back(zero);
-  output_deps_args.push_back(value_store);
 
   state_deps_args.push_back(state);
   state_deps_args.push_back(zero);
-  state_deps_args.push_back(value_store);
 
   FunctionType *sd_type = makeStateDepsType(defn, mod_env);
   Function *sd_underlying = mod_env.makeFunctionDecl(defn.getSafeName() + "_state_deps", sd_type);
