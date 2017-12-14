@@ -4,6 +4,7 @@
 
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 namespace JITSim {
 
@@ -89,11 +90,16 @@ std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> module) {
   // Create a function pass manager.
   auto fpm = make_unique<legacy::FunctionPassManager>(module.get());
 
+  /* FIXME revisit this */
+  PassManagerBuilder manager_builder;
+  manager_builder.OptLevel = 2;
+  manager_builder.populateFunctionPassManager(*fpm);
+
   // Add some optimizations.
-  fpm->add(createInstructionCombiningPass());
-  fpm->add(createReassociatePass());
-  fpm->add(createGVNPass());
-  fpm->add(createCFGSimplificationPass());
+  //fpm->add(createInstructionCombiningPass(true));
+  //fpm->add(createReassociatePass());
+  //fpm->add(createGVNPass());
+  //fpm->add(createCFGSimplificationPass());
   fpm->doInitialization();
 
   // Run the optimizations over all functions in the module being added to
