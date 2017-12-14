@@ -124,22 +124,30 @@ void JITFrontend::addDefinitionFunctions(const Definition &defn)
 
     llvm::Value *inst_offset = symtab->lookup("inst_offset");
     assert(inst_offset && "Can't find inst_offset param");
-    llvm::BasicBlock &first_bb = func->front();
     llvm::IRBuilder<> ir_builder(builder.getContext());
 
     const vector<DebugValue> &inspect_vals = iter->second;
     for (const DebugValue &val : inspect_vals) {
-      llvm::BasicBlock *successor = first_bb.getSingleSuccessor();
+      llvm::BasicBlock *last_bb = &func->back();
       llvm::BasicBlock *debug_block = llvm::BasicBlock::Create(builder.getContext(), "debug_block", func);
-      llvm::Instruction *term = first_bb.getTerminator();
+      // Rewrite every predecessor of the return block to instead jump to the debug block
+      vector<llvm::Instruction *> terms;
+      for (auto pred : llvm::predecessors(last_bb)) {
+        llvm::Instruction *term = pred->getTerminator();
+        terms.push_back(term); // Can't erase term here since it will mess up the predecessor iterator
+        ir_builder.SetInsertPoint(term);
+        ir_builder.CreateBr(debug_block);
+      }
 
-      ir_builder.SetInsertPoint(term);
-      ir_builder.CreateBr(debug_block);
+      for (auto term : terms) {
+        term->eraseFromParent();
+      }
+
       ir_builder.SetInsertPoint(debug_block);
 
       llvm::Value *inst_eq = ir_builder.CreateICmpEQ(inst_offset, llvm::ConstantInt::get(builder.getContext(), llvm::APInt(64, val.inst_num)));
       llvm::BasicBlock *val_save = llvm::BasicBlock::Create(builder.getContext(), "inst_match", func);
-      ir_builder.CreateCondBr(inst_eq, val_save, successor);
+      ir_builder.CreateCondBr(inst_eq, val_save, last_bb);
       ir_builder.SetInsertPoint(val_save);
 
       llvm::Value *llvm_val = symtab->lookup(val.input_name);
@@ -148,9 +156,7 @@ void JITFrontend::addDefinitionFunctions(const Definition &defn)
 
       llvm::Value *addr = llvm::Constant::getIntegerValue(llvm_val->getType()->getPointerTo(), llvm::APInt(64, (uint64_t)val.store.data()));
       ir_builder.CreateStore(llvm_val, addr);
-      ir_builder.CreateBr(successor);
-
-      term->eraseFromParent();
+      ir_builder.CreateBr(last_bb);
     }
 
     llvm::outs() << "========== Modified " << defn.getName() << " ===========\n";
