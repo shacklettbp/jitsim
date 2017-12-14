@@ -62,7 +62,7 @@ build/objs/%.o: binsrc/%.cpp
 build/libsimjit.so: $(LIBOBJS)
 	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -shared -lcoreir -o $@
 
-build/jitfrontend: build/libsimjit.so $(BINOBJS)
+build/jitfrontend: build/libsimjit.so build/objs/jitfrontend.o
 	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
 
 .PHONY: clean
