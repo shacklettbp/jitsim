@@ -1,4 +1,4 @@
-# References
+# Credits
 Citation for content we referenced or used in the course of developing this project.
 * ISTC/AHA! Intel Science and Technology Center for Agile Hardware: https://aha.stanford.edu/
 * CoreIR source code: https://github.com/rdaly525/coreir
