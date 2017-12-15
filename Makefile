@@ -37,10 +37,9 @@ export CXX
 export CXXFLAGS
 export LDFLAGS
 
-all: build/libsimjit.so build/jitfrontend
+all: build/libsimjit.so build/jitfrontend build/bench
 
 BINSRCS =$(wildcard binsrc/[^_]*.cpp)
-BINOBJS =$(patsubst binsrc/%.cpp,build/objs/%.o,$(BINSRCS))
 
 LIBSRCS =$(wildcard src/[^_]*.cpp)
 LIBOBJS =$(patsubst src/%.cpp,build/objs/%.o,$(LIBSRCS))
@@ -63,7 +62,10 @@ build/libsimjit.so: $(LIBOBJS)
 	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -shared -lcoreir -o $@
 
 build/jitfrontend: build/libsimjit.so build/objs/jitfrontend.o
-	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
+	$(CXX) $(LDFLAGS) $(LLVMLDFLAGS) build/objs/jitfrontend.o -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
+
+build/bench: build/libsimjit.so build/objs/bench.o
+	$(CXX) $(LDFLAGS) $(LLVMLDFLAGS) build/objs/bench.o -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
 
 .PHONY: clean
 clean:

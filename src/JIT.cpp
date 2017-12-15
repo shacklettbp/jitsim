@@ -92,7 +92,7 @@ std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> module) {
 
   /* FIXME revisit this */
   PassManagerBuilder manager_builder;
-  manager_builder.OptLevel = 2;
+  manager_builder.OptLevel = 3;
   manager_builder.populateFunctionPassManager(*fpm);
 
   // Add some optimizations.
