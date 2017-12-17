@@ -180,6 +180,7 @@ static SourceSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &def
         break;
       }
     }
+    (void)found;
     assert(found);
 
     if (is_arrslice) {
