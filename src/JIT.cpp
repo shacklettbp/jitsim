@@ -123,7 +123,7 @@ std::shared_ptr<Module> JIT::debugModule(std::shared_ptr<Module> module)
     return module;
   }
 
-  return iter->second(move(CloneModule(module.get())));
+  return iter->second(CloneModule(module.get()));
 }
 
 std::string JIT::mangle(const std::string name) {

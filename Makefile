@@ -21,7 +21,7 @@ LDFLAGS += -L${HOME}/magma/coreir/lib
 
 # LLVM
 ifdef SYSTEMLLVM
-CXXFLAGS += $(shell llvm-config --cxxflags) -Wno-unused-parameter
+CXXFLAGS += $(shell llvm-config --cxxflags) -Wno-unused-parameter -Wno-unknown-warning-option
 LLVMLDFLAGS += $(shell llvm-config --ldflags)
 LLVMLDFLAGS += $(shell llvm-config --libs)
 else
