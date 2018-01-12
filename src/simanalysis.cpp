@@ -107,6 +107,7 @@ static vector<const Instance *> topoSortInstances(unordered_set<const Instance *
         break;
       }
     }
+    (void)found;
     assert(found);
   }
 
