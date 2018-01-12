@@ -78,7 +78,7 @@ build/libsimjit.so: $(LIBOBJS)
 build/libsimjit.dylib: $(LIBOBJS)
 	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -dynamiclib -lcoreir -o $@
 
-build/jitfrontend: build/libsimjit.$(TARGET) $(BINOBJS)
+build/jitfrontend: build/libsimjit.so build/objs/jitfrontend.o
 	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
 
 .PHONY: clean

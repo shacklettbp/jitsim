@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
   circuit.print();
 
   JITFrontend jit(circuit);
+  jit.dumpIR();
+
   LLVMStruct out = jit.computeOutput();
   cout << "Starting output: ";
   out.dump();
@@ -54,6 +56,7 @@ int main(int argc, char *argv[])
   int advance = 0;
   regex next(R"(next(?:\s+(\d+))?)");
   regex assign(R"(assign\s+(\w+)\s+(\d+))");
+  regex print(R"(print\s+(?:(\w+).)+(\w+))");
 
   while (true) {
     if (advance == 0) {
@@ -78,6 +81,13 @@ int main(int argc, char *argv[])
 
         out = jit.computeOutput();
         out.dump();
+      } else if (regex_search(input, match, print)) {
+        vector<string> instances;
+        for (unsigned i = 1; i < match.size() - 1; i++) {
+          instances.emplace_back(match[i]);
+        }
+        llvm::APInt val = jit.getValue(instances, match[match.size() - 1]);
+        cout << val.toString(10, false) << endl;
       } else {
         cout << "Invalid command\n";
       }
