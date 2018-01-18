@@ -8,6 +8,7 @@ ifeq ($(UNAME_S), Linux)
 TARGET = so
 endif
 ifeq ($(UNAME_S),Darwin)
+CXXFLAGS += -fno-rtti # OSX sanitizers are totally broken when rtti is enabled
 LDFLAGS += -lz -lncurses
 TARGET = dylib
 endif
