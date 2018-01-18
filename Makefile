@@ -44,6 +44,10 @@ LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
 LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libdir)
 LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
 endif
+FRONTENDLLVMLDFLAGS = 
+ifeq ($(UNAME_S), Linux)
+FRONTENDLLVMLDFLAGS = $(LLVMLDFLAGS)
+endif
 
 CXXFLAGS += -fexceptions -std=c++14
 
@@ -80,7 +84,7 @@ build/libsimjit.dylib: $(LIBOBJS)
 	$(CXX) $(LDFLAGS) $(LIBOBJS) $(LLVMLDFLAGS) -dynamiclib -lcoreir -o $@
 
 build/jitfrontend: build/libsimjit.so build/objs/jitfrontend.o
-	$(CXX) $(LDFLAGS) $(BINOBJS) $(LLVMLDFLAGS) -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
+	$(CXX) $(LDFLAGS) $(BINOBJS) $(FRONTENDLLVMLDFLAGS) -Wl,-rpath,build -lcoreir -lcoreir-commonlib -lsimjit  -o $@
 
 .PHONY: clean
 clean:
