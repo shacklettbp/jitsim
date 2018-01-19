@@ -27,7 +27,7 @@ Use bundled LLVM:
 make
 ```
 
-Use System LLVM:
+Use system LLVM:
 ```
 make SYSTEMLLVM=1
 ```
