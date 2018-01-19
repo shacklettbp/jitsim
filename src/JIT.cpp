@@ -135,7 +135,7 @@ std::string JIT::mangle(const std::string name) {
 
 JITTargetAddress JIT::updateStub(const std::string &name)
 {
-  auto symbol = debug_layer.findSymbol(name, false);
+  auto symbol = debug_layer.findSymbol(mangle(name), false);
   assert(symbol && "Couldn't find compiled function?");
 
   JITTargetAddress addr = cantFail(symbol.getAddress());
