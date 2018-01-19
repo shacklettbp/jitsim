@@ -18,13 +18,9 @@ ifdef SIMOPT
 CXXFLAGS += -O2 -march=native
 else
 CXXFLAGS += -O0 -g
-ifndef NOASAN
-CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
-LDFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
-endif
 endif
 
-CXXFLAGS += -Iinclude
+CXXFLAGS += -Iinclude -Wno-unused-parameter -Wno-unknown-warning-option
 LDFLAGS += -Lbuild
 
 # FIXME: coreir can be installed into a system path, or this should be added
@@ -33,17 +29,23 @@ CXXFLAGS += -isystem ${HOME}/magma/coreir/include
 LDFLAGS += -L${HOME}/magma/coreir/lib
 
 # LLVM
-ifdef SYSTEMLLVM
-CXXFLAGS += $(shell llvm-config --cxxflags) -Wno-unused-parameter -Wno-unknown-warning-option
-LLVMLDFLAGS += $(shell llvm-config --ldflags)
-LLVMLDFLAGS += $(shell llvm-config --libs)
-LLVMLDFLAGS += -Wl,-rpath,$(shell llvm-config --libdir)
-else
-CXXFLAGS += $(shell ./external/llvm/install/bin/llvm-config --cxxflags) -Wno-unknown-warning-option
-LLVMLDFLAGS = $(shell ./external/llvm/install/bin/llvm-config --ldflags)
-LLVMLDFLAGS += -Wl,-rpath,$(shell ./external/llvm/install/bin/llvm-config --libdir)
-LLVMLDFLAGS += $(shell ./external/llvm/install/bin/llvm-config --libs)
+LLVM_CONFIG = llvm-config
+ifndef SYSTEMLLVM
+LLVM_CONFIG = ./external/llvm/install/bin/llvm-config
+
+# Can only use address sanitizer with custom sanitizer build of LLVM
+ifndef NOASAN
+CXXFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all 
+LDFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all
 endif
+
+endif
+
+CXXFLAGS += $(shell ${LLVM_CONFIG} --cxxflags) 
+LLVMLDFLAGS += $(shell ${LLVM_CONFIG} --ldflags)
+LLVMLDFLAGS += $(shell ${LLVM_CONFIG} --libs)
+LLVMLDFLAGS += -Wl,-rpath,$(shell ${LLVM_CONFIG} --libdir)
+
 FRONTENDLLVMLDFLAGS = 
 ifeq ($(UNAME_S), Linux)
 FRONTENDLLVMLDFLAGS = $(LLVMLDFLAGS)
