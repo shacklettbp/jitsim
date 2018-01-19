@@ -23,7 +23,7 @@ endif
 CXXFLAGS += -Iinclude -Wno-unused-parameter -Wno-unknown-warning-option
 LDFLAGS += -Lbuild
 
-include config.mk
+-include config.mk
 
 # LLVM
 LLVM_CONFIG = llvm-config
