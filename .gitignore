@@ -1,2 +1,3 @@
 /external/llvm/*
 /build/*
+/config.mk
