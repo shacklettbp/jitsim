@@ -23,10 +23,7 @@ endif
 CXXFLAGS += -Iinclude -Wno-unused-parameter -Wno-unknown-warning-option
 LDFLAGS += -Lbuild
 
-# FIXME: coreir can be installed into a system path, or this should be added
-# explicitly as an option by the user
-CXXFLAGS += -isystem ${HOME}/magma/coreir/include
-LDFLAGS += -L${HOME}/magma/coreir/lib
+include config.mk
 
 # LLVM
 LLVM_CONFIG = llvm-config
