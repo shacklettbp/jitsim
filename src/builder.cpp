@@ -17,16 +17,6 @@ FunctionEnvironment::FunctionEnvironment(Function *func_, ModuleEnvironment *par
 {
 }
 
-llvm::Value * FunctionEnvironment::lookupValue(const Source *lookup) const
-{
-  return value_lookup.find(lookup)->second;
-}
-
-void FunctionEnvironment::addValue(const Source *key, llvm::Value *val)
-{
-  value_lookup[key] = val;
-}
-
 BasicBlock * FunctionEnvironment::addBasicBlock(const std::string &name, bool setEntry)
 {
   BasicBlock *bb = BasicBlock::Create(*context, name, func);
@@ -40,6 +30,26 @@ BasicBlock * FunctionEnvironment::addBasicBlock(const std::string &name, bool se
 DIBuilder & FunctionEnvironment::getDIBuilder()
 {
   return parent->getDIBuilder();
+}
+
+llvm::Value * ModuleEnvironment::lookupValue(const Source *lookup) const
+{
+  return src_value_lookup.find(lookup)->second;
+}
+
+llvm::Value * ModuleEnvironment::lookupValue(const Sink *lookup) const
+{
+  return sink_value_lookup.find(lookup)->second;
+}
+
+void ModuleEnvironment::addValue(const Source *key, llvm::Value *val)
+{
+  src_value_lookup[key] = val;
+}
+
+void ModuleEnvironment::addValue(const Sink *key, llvm::Value *val)
+{
+  sink_value_lookup[key] = val;
 }
 
 Function * ModuleEnvironment::getFunctionDecl(const std::string &name)

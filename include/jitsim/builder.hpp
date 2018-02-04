@@ -19,7 +19,42 @@
 namespace JITSim {
 
 class Source;
-class ModuleEnvironment;
+class Sink;
+class FunctionEnvironment;
+
+class ModuleEnvironment {
+private:
+  std::shared_ptr<llvm::Module> module;
+  llvm::LLVMContext *context;
+  std::unique_ptr<llvm::DIBuilder> di_builder;
+
+  std::unordered_map<std::string, llvm::Function *> named_functions;
+
+  std::unordered_map<const Source *, llvm::Value *> src_value_lookup; 
+  std::unordered_map<const Sink *, llvm::Value *> sink_value_lookup; 
+public:
+  ModuleEnvironment(std::unique_ptr<llvm::Module> &&module_, llvm::LLVMContext *context_)
+    : module(move(module_)), context(context_), di_builder(std::make_unique<llvm::DIBuilder>(*module))
+  {}
+
+  llvm::LLVMContext & getContext() { return *context; }
+  llvm::DIBuilder & getDIBuilder() { return *di_builder; }
+
+  llvm::Function * getFunctionDecl(const std::string &name);
+  llvm::Function * makeFunctionDecl(const std::string &name, llvm::FunctionType *function_type);
+  FunctionEnvironment makeFunction(const std::string &name, llvm::FunctionType *function_type);
+
+  llvm::Value * lookupValue(const Source *) const;
+  llvm::Value * lookupValue(const Sink *) const;
+  void addValue(const Source *, llvm::Value *val);
+  void addValue(const Sink *, llvm::Value *val);
+
+  std::shared_ptr<llvm::Module> getModule() const { return module; }
+  std::string getIRStr() const;
+
+  bool verify() const;
+};
+
 
 class FunctionEnvironment {
 private:
@@ -27,15 +62,16 @@ private:
   ModuleEnvironment *parent;
   llvm::LLVMContext *context;
 
-  std::unordered_map<const Source *, llvm::Value *> value_lookup; 
   llvm::IRBuilder<> ir_builder;
   llvm::BasicBlock *cur_bb;
 
 public:
   FunctionEnvironment(llvm::Function *func_, ModuleEnvironment *parent_);
 
-  llvm::Value * lookupValue(const Source *) const;
-  void addValue(const Source *, llvm::Value *val);
+  llvm::Value * lookupValue(const Source *src) const { return parent->lookupValue(src); }
+  llvm::Value * lookupValue(const Sink *sink) const { return parent->lookupValue(sink); }
+  void addValue(const Source *src, llvm::Value *val) { parent->addValue(src, val); }
+  void addValue(const Sink *sink, llvm::Value *val) { parent->addValue(sink, val); }
 
   llvm::BasicBlock * addBasicBlock(const std::string &name, bool setEntry = true);
   llvm::BasicBlock * getCurBasicBlock() { return cur_bb; }
@@ -53,31 +89,6 @@ public:
   llvm::LLVMContext & getContext() { return *context; }
   llvm::IRBuilder<> & getIRBuilder() { return ir_builder; }
   llvm::DIBuilder & getDIBuilder();
-
-  bool verify() const;
-};
-
-class ModuleEnvironment {
-private:
-  std::shared_ptr<llvm::Module> module;
-  llvm::LLVMContext *context;
-  std::unique_ptr<llvm::DIBuilder> di_builder;
-
-  std::unordered_map<std::string, llvm::Function *> named_functions;
-public:
-  ModuleEnvironment(std::unique_ptr<llvm::Module> &&module_, llvm::LLVMContext *context_)
-    : module(move(module_)), context(context_), di_builder(std::make_unique<llvm::DIBuilder>(*module))
-  {}
-
-  llvm::LLVMContext & getContext() { return *context; }
-  llvm::DIBuilder & getDIBuilder() { return *di_builder; }
-
-  llvm::Function * getFunctionDecl(const std::string &name);
-  llvm::Function * makeFunctionDecl(const std::string &name, llvm::FunctionType *function_type);
-  FunctionEnvironment makeFunction(const std::string &name, llvm::FunctionType *function_type);
-
-  std::shared_ptr<llvm::Module> getModule() const { return module; }
-  std::string getIRStr() const;
 
   bool verify() const;
 };
