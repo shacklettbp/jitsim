@@ -96,21 +96,29 @@ void LLVMStruct::dump() const
 void JITFrontend::addDefinitionFunctions(const Definition &defn)
 {
   jit.addLazyFunction(defn.getSafeName() + "_update_state", [this, &defn]() {
-    return MakeUpdateState(builder, defn);
+    ModuleEnvironment env = MakeUpdateState(builder, defn);
+
+    return env.getModule();
   });
 
   jit.addLazyFunction(defn.getSafeName() + "_compute_output", [this, &defn]() {
-    return MakeComputeOutput(builder, defn);
+    ModuleEnvironment env = MakeComputeOutput(builder, defn);
+
+    return env.getModule();
   });
 
   jit.addLazyFunction(defn.getSafeName() + "_state_deps", [this, &defn]() {
-    return MakeStateDeps(builder, defn);
+    ModuleEnvironment env = MakeStateDeps(builder, defn);
+
+    return env.getModule();
   }, [](auto module) {
     return module;
   });
 
   jit.addLazyFunction(defn.getSafeName() + "_output_deps", [this, &defn]() {
-    return MakeOutputDeps(builder, defn);
+    ModuleEnvironment env = MakeOutputDeps(builder, defn);
+
+    return env.getModule();
   }, [this, &defn](auto module) {
     auto iter = debug_info.debug_values.find(&defn);
     if (iter == debug_info.debug_values.end()) {
@@ -172,15 +180,15 @@ void JITFrontend::addDefinitionFunctions(const Definition &defn)
 void JITFrontend::addWrappers(const Definition &top)
 {
   jit.addLazyFunction("update_state", [this, &top]() {
-    return MakeUpdateStateWrapper(builder, top);
+    return MakeUpdateStateWrapper(builder, top).getModule();
   });
 
   jit.addLazyFunction("compute_output", [this, &top]() {
-    return MakeComputeOutputWrapper(builder, top);
+    return MakeComputeOutputWrapper(builder, top).getModule();
   });
 
   jit.addLazyFunction("get_values", [this, &top]() {
-    return MakeGetValuesWrapper(builder, top);
+    return MakeGetValuesWrapper(builder, top).getModule();
   });
 }
 

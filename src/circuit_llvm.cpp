@@ -228,7 +228,7 @@ static void makeInstanceUpdateState(const Instance *inst, const SimInfo &defn_in
   }
 }
 
-std::unique_ptr<Module> MakeComputeOutput(Builder &builder, const Definition &definition)
+ModuleEnvironment MakeComputeOutput(Builder &builder, const Definition &definition)
 {
   ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_compute_output");
 
@@ -272,10 +272,10 @@ std::unique_ptr<Module> MakeComputeOutput(Builder &builder, const Definition &de
 
   assert(!compute_output.verify());
   
-  return mod_env.returnModule();
+  return mod_env;
 }
 
-std::unique_ptr<Module> MakeUpdateState(Builder &builder, const Definition &definition)
+ModuleEnvironment MakeUpdateState(Builder &builder, const Definition &definition)
 {
   ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_update_state");
 
@@ -311,7 +311,7 @@ std::unique_ptr<Module> MakeUpdateState(Builder &builder, const Definition &defi
   assert(!update_state.verify());
   assert(!mod_env.verify());
 
-  return mod_env.returnModule();
+  return mod_env;
 }
 
 static void makeInstanceOutputDeps(const Instance *inst, const SimInfo &defn_info, FunctionEnvironment &env, Value *base_state, Value *inst_offset)
@@ -396,7 +396,7 @@ static void makeInstanceStateDeps(const Instance *inst, const SimInfo &defn_info
 }
 
 
-std::unique_ptr<Module> MakeOutputDeps(Builder &builder, const Definition &definition)
+ModuleEnvironment MakeOutputDeps(Builder &builder, const Definition &definition)
 {
   ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_output_deps");
 
@@ -448,10 +448,10 @@ std::unique_ptr<Module> MakeOutputDeps(Builder &builder, const Definition &defin
 
   assert(!output_deps.verify());
   
-  return mod_env.returnModule();
+  return mod_env;
 }
 
-std::unique_ptr<Module> MakeStateDeps(Builder &builder, const Definition &definition)
+ModuleEnvironment MakeStateDeps(Builder &builder, const Definition &definition)
 {
   ModuleEnvironment mod_env = builder.makeModule(definition.getSafeName() + "_state_deps");
 
@@ -495,10 +495,10 @@ std::unique_ptr<Module> MakeStateDeps(Builder &builder, const Definition &defini
   assert(!state_deps.verify());
   assert(!mod_env.verify());
 
-  return mod_env.returnModule();
+  return mod_env;
 }
 
-std::unique_ptr<Module> MakeComputeOutputWrapper(Builder &builder, const Definition &defn)
+ModuleEnvironment MakeComputeOutputWrapper(Builder &builder, const Definition &defn)
 {
   ModuleEnvironment mod_env = builder.makeModule(defn.getSafeName() + "_compute_output_wrapper");
 
@@ -541,10 +541,10 @@ std::unique_ptr<Module> MakeComputeOutputWrapper(Builder &builder, const Definit
 
   func.verify();
 
-  return mod_env.returnModule();
+  return mod_env;
 }
 
-std::unique_ptr<Module> MakeUpdateStateWrapper(Builder &builder, const Definition &defn)
+ModuleEnvironment MakeUpdateStateWrapper(Builder &builder, const Definition &defn)
 {
   ModuleEnvironment mod_env = builder.makeModule(defn.getSafeName() + "_update_state_wrapper");
 
@@ -577,10 +577,10 @@ std::unique_ptr<Module> MakeUpdateStateWrapper(Builder &builder, const Definitio
   func.getIRBuilder().CreateRetVoid();
   func.verify();
 
-  return mod_env.returnModule();
+  return mod_env;
 }
 
-std::unique_ptr<Module> MakeGetValuesWrapper(Builder &builder, const Definition &defn)
+ModuleEnvironment MakeGetValuesWrapper(Builder &builder, const Definition &defn)
 {
   ModuleEnvironment mod_env = builder.makeModule(defn.getSafeName() + "_get_values_wrapper");
 
@@ -640,7 +640,7 @@ std::unique_ptr<Module> MakeGetValuesWrapper(Builder &builder, const Definition 
 
   func.getIRBuilder().CreateRetVoid();
   func.verify();
-  return mod_env.returnModule();
+  return mod_env;
 }
 
 }

@@ -71,7 +71,7 @@ public:
   llvm::JITTargetAddress getSymbolAddress(const std::string name);
 
   ModuleHandle addModule(std::shared_ptr<llvm::Module> module);
-  void addLazyFunction(std::string name, std::function<std::unique_ptr<llvm::Module>()> module_generator,
+  void addLazyFunction(std::string name, std::function<std::shared_ptr<llvm::Module>()> module_generator,
                        TransformFunction debug_transform = nullptr);
 
   void precompileIR();

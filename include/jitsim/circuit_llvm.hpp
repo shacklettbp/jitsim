@@ -8,13 +8,13 @@
 
 namespace JITSim {
 
-std::unique_ptr<llvm::Module> MakeComputeOutput(Builder &builder, const Definition &definition);
-std::unique_ptr<llvm::Module> MakeUpdateState(Builder &builder, const Definition &definition);
-std::unique_ptr<llvm::Module> MakeOutputDeps(Builder &builder, const Definition &definition);
-std::unique_ptr<llvm::Module> MakeStateDeps(Builder &builder, const Definition &definition);
-std::unique_ptr<llvm::Module> MakeComputeOutputWrapper(Builder &builder, const Definition &defn);
-std::unique_ptr<llvm::Module> MakeUpdateStateWrapper(Builder &builder, const Definition &defn);
-std::unique_ptr<llvm::Module> MakeGetValuesWrapper(Builder &builder, const Definition &defn);
+ModuleEnvironment MakeComputeOutput(Builder &builder, const Definition &definition);
+ModuleEnvironment MakeUpdateState(Builder &builder, const Definition &definition);
+ModuleEnvironment MakeOutputDeps(Builder &builder, const Definition &definition);
+ModuleEnvironment MakeStateDeps(Builder &builder, const Definition &definition);
+ModuleEnvironment MakeComputeOutputWrapper(Builder &builder, const Definition &defn);
+ModuleEnvironment MakeUpdateStateWrapper(Builder &builder, const Definition &defn);
+ModuleEnvironment MakeGetValuesWrapper(Builder &builder, const Definition &defn);
 
 }
 

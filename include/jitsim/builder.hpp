@@ -59,7 +59,7 @@ public:
 
 class ModuleEnvironment {
 private:
-  std::unique_ptr<llvm::Module> module;
+  std::shared_ptr<llvm::Module> module;
   llvm::LLVMContext *context;
   std::unique_ptr<llvm::DIBuilder> di_builder;
 
@@ -76,7 +76,7 @@ public:
   llvm::Function * makeFunctionDecl(const std::string &name, llvm::FunctionType *function_type);
   FunctionEnvironment makeFunction(const std::string &name, llvm::FunctionType *function_type);
 
-  std::unique_ptr<llvm::Module> returnModule() { return move(module); }
+  std::shared_ptr<llvm::Module> getModule() const { return module; }
   std::string getIRStr() const;
 
   bool verify() const;

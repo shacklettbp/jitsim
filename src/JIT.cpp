@@ -148,7 +148,7 @@ JITTargetAddress JIT::updateStub(const std::string &name)
 }
 
 void JIT::addLazyFunction(std::string name,
-                          std::function<std::unique_ptr<Module>()> module_generator,
+                          std::function<std::shared_ptr<Module>()> module_generator,
                           JIT::TransformFunction debug_transform)
 {
   auto compile_callback = compile_callback_manager->getCompileCallback();
