@@ -168,7 +168,9 @@ static void makeInstanceComputeOutput(const Instance *inst, const SimInfo &defn_
 
   for (const Source *src : inst_info.getOutputSources()) {
     const Sink *sink = iface.getSink(src);
-    argument_values.push_back(makeValueReference(sink->getSelect(), env));
+    Value *arg_val = makeValueReference(sink->getSelect(), env);
+    env.addValue(sink, arg_val);
+    argument_values.push_back(arg_val);
   }
 
   if (inst_info.isStateful()) {
@@ -208,7 +210,9 @@ static void makeInstanceUpdateState(const Instance *inst, const SimInfo &defn_in
 
   for (const Source *src : inst_info.getStateSources()) {
     const Sink *sink = iface.getSink(src);
-    argument_values.push_back(makeValueReference(sink->getSelect(), env));
+    Value *arg_val = makeValueReference(sink->getSelect(), env);
+    env.addValue(sink, arg_val);
+    argument_values.push_back(arg_val);
   }
 
   Value *state_ptr = incrementStatePtr(base_state, defn_info.getOffset(inst), env);
@@ -264,7 +268,10 @@ ModuleEnvironment MakeComputeOutput(Builder &builder, const Definition &definiti
   Value *ret_val = UndefValue::get(co_type->getReturnType());
 
   for (unsigned i = 0; i < sinks.size(); i++ ) {
-    Value *ret_part = makeValueReference(sinks[i].getSelect(), compute_output);
+    const Sink *sink = &sinks[i];
+    Value *ret_part = makeValueReference(sink->getSelect(), compute_output);
+    compute_output.addValue(sink, ret_part);
+
     ret_val = compute_output.getIRBuilder().CreateInsertValue(ret_val, ret_part, { i });
   }
 
@@ -325,7 +332,7 @@ static void makeInstanceOutputDeps(const Instance *inst, const SimInfo &defn_inf
   for (const Source *src : inst_info.getOutputSources()) {
     const Sink *sink = iface.getSink(src);
     Value *val = makeValueReference(sink->getSelect(), env);
-    //val->setName(inst->getName() + "_"  + sink->getName());
+    env.addValue(sink, val);
     argument_values.push_back(val);
   }
 
@@ -376,7 +383,7 @@ static void makeInstanceStateDeps(const Instance *inst, const SimInfo &defn_info
   for (const Source *src : inst_info.getStateSources()) {
     const Sink *sink = iface.getSink(src);
     Value *val = makeValueReference(sink->getSelect(), env);
-    //val->setName(inst->getName() + "_" + sink->getName());
+    env.addValue(sink, val);
     argument_values.push_back(val);
   }
 
@@ -409,7 +416,6 @@ ModuleEnvironment MakeOutputDeps(Builder &builder, const Definition &definition)
   const std::vector<const Source *> &sources = defn_info.getOutputSources();
   auto arg = output_deps.getFunction()->arg_begin();
   assert(output_deps.getFunction()->arg_size() == sources.size() + defn_info.isStateful() + 1);
-
   for (unsigned i = 0; i < sources.size(); i++, arg++) {
     const Source *src = sources[i];
 
@@ -440,7 +446,10 @@ ModuleEnvironment MakeOutputDeps(Builder &builder, const Definition &definition)
   Value *ret_val = UndefValue::get(od_type->getReturnType());
 
   for (unsigned i = 0; i < sinks.size(); i++ ) {
-    Value *ret_part = makeValueReference(sinks[i].getSelect(), output_deps);
+    const Sink *sink = &sinks[i];
+    Value *ret_part = makeValueReference(sink->getSelect(), output_deps);
+    output_deps.addValue(sink, ret_part);
+
     ret_val = output_deps.getIRBuilder().CreateInsertValue(ret_val, ret_part, { i });
   }
 
