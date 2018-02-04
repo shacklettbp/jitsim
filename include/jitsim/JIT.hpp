@@ -53,7 +53,7 @@ private:
   std::string mangle(const std::string name);
 
   using ModuleHandle = decltype(debug_layer)::ModuleHandleT;
-  std::vector<std::tuple<std::string, ModuleHandle, std::shared_ptr<llvm::Module>>> debug_modules;
+
   std::unordered_map<std::string, TransformFunction> debug_functions;
   std::unordered_set<llvm::JITTargetAddress> callback_addrs;
 
@@ -71,8 +71,9 @@ public:
   llvm::JITTargetAddress getSymbolAddress(const std::string name);
 
   ModuleHandle addModule(std::shared_ptr<llvm::Module> module);
-  void addLazyFunction(std::string name, std::function<std::shared_ptr<llvm::Module>()> module_generator,
-                       TransformFunction debug_transform = nullptr);
+  void addLazyFunction(const std::string &name,
+                       std::function<std::shared_ptr<llvm::Module>()> module_generator);
+  void addDebugTransform(const std::string &name, TransformFunction debug_transform);
 
   void precompileIR();
   void precompileDumpIR();

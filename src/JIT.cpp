@@ -147,9 +147,8 @@ JITTargetAddress JIT::updateStub(const std::string &name)
   return addr;
 }
 
-void JIT::addLazyFunction(std::string name,
-                          std::function<std::shared_ptr<Module>()> module_generator,
-                          JIT::TransformFunction debug_transform)
+void JIT::addLazyFunction(const std::string &name,
+                          std::function<std::shared_ptr<Module>()> module_generator)
 {
   auto compile_callback = compile_callback_manager->getCompileCallback();
   JITTargetAddress callback_address = compile_callback.getAddress();
@@ -158,24 +157,20 @@ void JIT::addLazyFunction(std::string name,
                                               callback_address,
                                               JITSymbolFlags::Exported));
 
-  bool is_debug = debug_transform != nullptr;
-  if (is_debug) {
-    debug_functions[name] = move(debug_transform);
-  }
-
   compile_callback.setCompileAction([this, name, module_generator, is_debug, callback_address]() {
     auto module = module_generator();
-    std::shared_ptr<Module> shared_module(std::move(module));
-    auto compiled_handle = addModule(shared_module);
-    if (is_debug) {
-      debug_modules.emplace_back(name, compiled_handle, shared_module);
-    }
+    auto compiled_handle = addModule(module);
 
     callback_addrs.erase(callback_address);
 
     return updateStub(name);
   });
   callback_addrs.insert(callback_address);
+}
+
+void JIT::addDebugTransform(const std::string &name,
+                            TransformFunction debug_transform)
+{
 }
 
 void JIT::precompileIR()
