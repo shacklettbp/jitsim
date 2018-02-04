@@ -185,6 +185,8 @@ SimInfo::SimInfo(const IFace &defn_iface, const vector<Instance> &instances)
   : stateful_insts(filterStatefulInstances(instances)),
     state_deps(),
     output_deps(),
+    state_deps_lookup(),
+    output_deps_lookup(),
     offset_map(),
     primitive(),
     is_stateful(stateful_insts.size() > 0),
@@ -199,12 +201,22 @@ SimInfo::SimInfo(const IFace &defn_iface, const vector<Instance> &instances)
   calculateInstanceNumbers(instances);
 
   analyzeOutputDeps(defn_iface);
+
+  for (const Instance *inst : output_deps) {
+    output_deps_lookup.insert(inst);
+  }
+
+  for (const Instance *inst : state_deps) {
+    state_deps_lookup.insert(inst);
+  }
 }
 
 SimInfo::SimInfo(const IFace &defn_iface, const Primitive &primitive_)
   : stateful_insts(),
     state_deps(),
     output_deps(),
+    state_deps_lookup(),
+    output_deps_lookup(),
     primitive(primitive_),
     is_stateful(primitive->is_stateful),
     num_state_bytes(primitive->num_state_bytes),

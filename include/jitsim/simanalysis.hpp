@@ -19,6 +19,8 @@ private:
   std::vector<const Instance *> stateful_insts;
   std::vector<const Instance *> state_deps;
   std::vector<const Instance *> output_deps;
+  std::unordered_set<const Instance *> state_deps_lookup;
+  std::unordered_set<const Instance *> output_deps_lookup;
   std::unordered_map<const Instance *, unsigned> offset_map;
   std::unordered_map<const Instance *, unsigned> inst_nums;
   optional<Primitive> primitive;
@@ -42,6 +44,8 @@ public:
   bool isStateful() const { return is_stateful; }
   bool isPrimitive() const { return primitive.has_value(); }
 
+  bool isStateDep(const Instance *inst) const { return state_deps_lookup.count(inst); }
+  bool isOutputDep(const Instance *inst) const { return output_deps_lookup.count(inst); }
   const std::vector<const Instance *> & getStateDeps() const { return state_deps; }
   const std::vector<const Instance *> & getOutputDeps() const { return output_deps; }
   const std::vector<const Instance *> & getStatefulInstances() const { return stateful_insts; }
