@@ -86,6 +86,17 @@ void JIT::removeModule(ModuleHandle handle) {
   cantFail(debug_layer.removeModule(handle));
 }
 
+bool JIT::removeModule(const std::string &name) {
+  auto iter = live_modules.find(name);
+  if (iter == live_modules.end()) {
+    return false;
+  }
+  removeModule(iter->second);
+  live_modules.erase(iter);
+  
+  return true;
+}
+
 std::shared_ptr<Module> JIT::optimizeModule(std::shared_ptr<Module> module) {
   // Create a function pass manager.
   auto fpm = make_unique<legacy::FunctionPassManager>(module.get());
@@ -123,7 +134,11 @@ std::shared_ptr<Module> JIT::debugModule(std::shared_ptr<Module> module)
     return module;
   }
 
-  return iter->second(CloneModule(module.get()));
+  for (auto func : iter->second) {
+    module = func(module);
+  }
+
+  return module;
 }
 
 std::string JIT::mangle(const std::string name) {
@@ -157,9 +172,10 @@ void JIT::addLazyFunction(const std::string &name,
                                               callback_address,
                                               JITSymbolFlags::Exported));
 
-  compile_callback.setCompileAction([this, name, module_generator, is_debug, callback_address]() {
+  compile_callback.setCompileAction([this, name, module_generator, callback_address]() {
     auto module = module_generator();
     auto compiled_handle = addModule(module);
+    live_modules[name] = compiled_handle;
 
     callback_addrs.erase(callback_address);
 
@@ -168,9 +184,17 @@ void JIT::addLazyFunction(const std::string &name,
   callback_addrs.insert(callback_address);
 }
 
-void JIT::addDebugTransform(const std::string &name,
-                            TransformFunction debug_transform)
+std::deque<JIT::TransformFunction>::iterator JIT::addDebugTransform(const std::string &name,
+                                                                    TransformFunction debug_transform)
 {
+  debug_functions[name].push_back(debug_transform);
+  return debug_functions[name].end() - 1;
+}
+
+void JIT::removeDebugTransform(const std::string &name,
+                               std::deque<TransformFunction>::iterator iter)
+{
+  debug_functions[name].erase(iter);
 }
 
 void JIT::precompileIR()
@@ -186,32 +210,6 @@ void JIT::precompileDumpIR()
   debug_print_ir = true;
   precompileIR();
   debug_print_ir = false;
-}
-
-void JIT::purgeDebugModules()
-{
-  auto debug_copy(move(debug_modules));
-  debug_modules.clear();
-
-  for (auto &elem : debug_copy) {
-    auto name = std::get<0>(elem);
-    auto compiled_handle = std::get<1>(elem);
-    auto ir_module = std::get<2>(elem);
-    removeModule(compiled_handle);
-
-    auto compile_callback = compile_callback_manager->getCompileCallback();
-    compile_callback.setCompileAction([this, name, ir_module] {
-      auto new_handle = addModule(ir_module);
-      debug_modules.emplace_back(name, new_handle, ir_module);
-
-      return updateStub(name);
-    });
-
-    if (auto err = indirect_stubs_manager->updatePointer(mangle(name), compile_callback.getAddress())) {
-      logAllUnhandledErrors(std::move(err), errs(),
-                            "Error updating function pointer: ");
-    }
-  }
 }
 
 } // end namespace JITSim

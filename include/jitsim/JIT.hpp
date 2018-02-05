@@ -54,7 +54,8 @@ private:
 
   using ModuleHandle = decltype(debug_layer)::ModuleHandleT;
 
-  std::unordered_map<std::string, TransformFunction> debug_functions;
+  std::unordered_map<std::string, std::deque<TransformFunction>> debug_functions;
+  std::unordered_map<std::string, ModuleHandle> live_modules;
   std::unordered_set<llvm::JITTargetAddress> callback_addrs;
 
   void removeModule(ModuleHandle handle);
@@ -73,12 +74,14 @@ public:
   ModuleHandle addModule(std::shared_ptr<llvm::Module> module);
   void addLazyFunction(const std::string &name,
                        std::function<std::shared_ptr<llvm::Module>()> module_generator);
-  void addDebugTransform(const std::string &name, TransformFunction debug_transform);
+  std::deque<TransformFunction>::iterator addDebugTransform(const std::string &name,
+                                                            TransformFunction debug_transform);
+
+  void removeDebugTransform(const std::string &name, std::deque<TransformFunction>::iterator iter);
+  bool removeModule(const std::string &name);
 
   void precompileIR();
   void precompileDumpIR();
-
-  void purgeDebugModules();
 };
 
 } // end namespace JITSim

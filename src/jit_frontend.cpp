@@ -109,71 +109,16 @@ void JITFrontend::addDefinitionFunctions(const Definition &defn)
 
   jit.addLazyFunction(defn.getSafeName() + "_state_deps", [this, &defn]() {
     ModuleEnvironment env = MakeStateDeps(builder, defn);
+    debug_modules.emplace(defn.getSafeName() + "_state_deps", move(env));
 
     return env.getModule();
-  }, [](auto module) {
-    return module;
   });
 
   jit.addLazyFunction(defn.getSafeName() + "_output_deps", [this, &defn]() {
     ModuleEnvironment env = MakeOutputDeps(builder, defn);
+    debug_modules.emplace(defn.getSafeName() + "_output_deps", move(env));
 
     return env.getModule();
-  }, [this, &defn](auto module) {
-    auto iter = debug_info.debug_values.find(&defn);
-    if (iter == debug_info.debug_values.end()) {
-      return module;
-    } 
-
-    auto func = module->getFunction(defn.getSafeName() + "_output_deps");
-    assert(func && "unable to find function to modify");
-    auto symtab = func->getValueSymbolTable();
-    assert(symtab && "unable to find function symbol table");
-
-    llvm::Value *inst_offset = symtab->lookup("inst_offset");
-    assert(inst_offset && "Can't find inst_offset param");
-    llvm::IRBuilder<> ir_builder(builder.getContext());
-
-    const vector<DebugValue> &inspect_vals = iter->second;
-    for (const DebugValue &val : inspect_vals) {
-      llvm::BasicBlock *last_bb = &func->back();
-      llvm::BasicBlock *debug_block = llvm::BasicBlock::Create(builder.getContext(), "debug_block", func);
-      // Rewrite every predecessor of the return block to instead jump to the debug block
-      vector<llvm::Instruction *> terms;
-      for (auto pred : llvm::predecessors(last_bb)) {
-        llvm::Instruction *term = pred->getTerminator();
-        terms.push_back(term); // Can't erase term here since it will mess up the predecessor iterator
-        ir_builder.SetInsertPoint(term);
-        ir_builder.CreateBr(debug_block);
-      }
-
-      for (auto term : terms) {
-        term->eraseFromParent();
-      }
-
-      ir_builder.SetInsertPoint(debug_block);
-
-      llvm::Value *inst_eq = ir_builder.CreateICmpEQ(inst_offset, llvm::ConstantInt::get(builder.getContext(), llvm::APInt(64, val.inst_num)));
-      llvm::BasicBlock *val_save = llvm::BasicBlock::Create(builder.getContext(), "inst_match", func);
-      ir_builder.CreateCondBr(inst_eq, val_save, last_bb);
-      ir_builder.SetInsertPoint(val_save);
-
-      llvm::Value *llvm_val = symtab->lookup(val.input_name);
-      assert(llvm_val && "Can't find queried value");
-      assert(val.store.data() && "Data store is null?");
-
-      llvm::Value *addr = llvm::Constant::getIntegerValue(llvm_val->getType()->getPointerTo(), llvm::APInt(64, (uint64_t)val.store.data()));
-      ir_builder.CreateStore(llvm_val, addr);
-      ir_builder.CreateBr(last_bb);
-    }
-
-    llvm::outs() << "========== Modified " << defn.getName() << " ===========\n";
-    llvm::outs() << *module;
-    llvm::outs() << "=====================================\n";
-    if (llvm::verifyModule(*module)) {
-      llvm::errs() << "Modified module has errors\n";
-    }
-    return module;
   });
 }
 
@@ -204,7 +149,6 @@ JITFrontend::JITFrontend(const Circuit &circuit, const Definition &top_)
     state(top_.getSimInfo().allocateState()),
     compute_output_ptr(nullptr),
     update_state_ptr(nullptr),
-    debug_info(),
     top(&top_)
 {
   for (const Definition &defn : circuit.getDefinitions()) {
@@ -267,13 +211,8 @@ static tuple<const Definition *, const Instance *, unsigned> getDefnAndInst(cons
   return make_tuple(cur_defn, inst, inst_num);
 }
 
-vector<uint8_t> & JITFrontend::updateDebugInfo(const vector<string> &inst_names, const string &input)
+vector<uint8_t> JITFrontend::allocateDebugStorage(const Instance *inst, const string &input)
 {
-  const Definition *defn;
-  const Instance *inst;
-  unsigned inst_num;
-  tie(defn, inst, inst_num) = getDefnAndInst(top, inst_names);
-
   int num_bits = 0;
   const IFace &iface = inst->getIFace();
   if (iface.hasSource(input)) {
@@ -290,30 +229,109 @@ vector<uint8_t> & JITFrontend::updateDebugInfo(const vector<string> &inst_names,
   }
   
   assert(num_bytes);
-  vector<uint8_t> store(num_bytes, 0);
-
-  string input_name = inst->getName() + "_" + input;
-
-  debug_info.debug_values[defn].push_back(DebugValue {inst_num, input_name, move(store)});
-  assert(debug_info.debug_values[defn].back().store.data());
-
-  return debug_info.debug_values[defn].back().store;
+  return vector<uint8_t>(num_bytes, 0);
 }
 
 llvm::APInt JITFrontend::getValue(const vector<string> &inst_names, const string &input)
 {
-  jit.purgeDebugModules();
-  vector<uint8_t> &data = updateDebugInfo(inst_names, input);
+  const Definition *defn;
+  const Instance *inst;
+  unsigned inst_num;
+  tie(defn, inst, inst_num) = getDefnAndInst(top, inst_names);
+  vector<uint8_t> debug_store = allocateDebugStorage(inst, input);
+  assert(debug_store.data() && "Data store is null?");
+  const SimInfo &defn_info = defn->getSimInfo();
+
+  bool in_output_deps = defn_info.isOutputDep(inst);
+  assert(in_output_deps || defn_info.isStateDep(inst));
+
+  string mod_name;
+  if (in_output_deps) {
+    mod_name = defn->getSafeName() + "_output_deps";
+  } else {
+    mod_name = defn->getSafeName() + "_state_deps";
+  }
+  if (jit.removeModule(mod_name)) {
+    /* If the module was removed, add a new callback to use the already generated IR */
+    assert(debug_modules.count(mod_name));
+
+    jit.addLazyFunction(mod_name, [this, mod_name]() {
+      ModuleEnvironment &env = debug_modules.find(mod_name)->second;
+      return env.getModule();
+    });
+  }
+  jit.addDebugTransform(mod_name, [this, inst, mod_name, input, inst_num, debug_store, defn](std::shared_ptr<llvm::Module> module) {
+    ModuleEnvironment &env = debug_modules.find(mod_name)->second;
+
+    llvm::Value *llvm_val = nullptr;
+    const IFace &inst_iface = inst->getIFace();
+    if (inst_iface.hasSource(input)) {
+      const Source *src = inst_iface.getSource(input);
+      llvm_val = env.lookupValue(src);
+    } else if (inst_iface.hasSink(input)) {
+      const Sink *sink = inst_iface.getSink(input);
+      llvm_val = env.lookupValue(sink);
+    } else {
+      assert(false);
+    }
+    assert(llvm_val && "Can't find queried value");
+
+    auto func = module->getFunction(mod_name);
+    assert(func && "unable to find function to modify");
+    auto symtab = func->getValueSymbolTable();
+    assert(symtab && "unable to find function symbol table");
+
+    llvm::Value *inst_offset = symtab->lookup("inst_offset");
+    assert(inst_offset && "Can't find inst_offset param");
+    llvm::IRBuilder<> ir_builder(builder.getContext());
+
+    llvm::BasicBlock *last_bb = &func->back();
+    llvm::BasicBlock *debug_block = llvm::BasicBlock::Create(builder.getContext(), "debug_block", func);
+
+    // Rewrite every predecessor of the return block to instead jump to the debug block
+    vector<llvm::Instruction *> terms;
+    for (auto pred : llvm::predecessors(last_bb)) {
+      llvm::Instruction *term = pred->getTerminator();
+      terms.push_back(term); // Can't erase term here since it will mess up the predecessor iterator
+      ir_builder.SetInsertPoint(term);
+      ir_builder.CreateBr(debug_block);
+    }
+
+    for (auto term : terms) {
+      term->eraseFromParent();
+    }
+
+    ir_builder.SetInsertPoint(debug_block);
+    llvm::Value *inst_eq = ir_builder.CreateICmpEQ(inst_offset, llvm::ConstantInt::get(builder.getContext(), llvm::APInt(64, inst_num)));
+    llvm::BasicBlock *val_save = llvm::BasicBlock::Create(builder.getContext(), "inst_match", func);
+    ir_builder.CreateCondBr(inst_eq, val_save, last_bb);
+    ir_builder.SetInsertPoint(val_save);
+
+
+    llvm::Value *addr = llvm::Constant::getIntegerValue(llvm_val->getType()->getPointerTo(), llvm::APInt(64, (uint64_t)debug_store.data()));
+    ir_builder.CreateStore(llvm_val, addr);
+    ir_builder.CreateBr(last_bb);
+
+    llvm::outs() << "========== Modified " << defn->getName() << " ===========\n";
+    llvm::outs() << *module;
+    llvm::outs() << "=====================================\n";
+    if (llvm::verifyModule(*module)) {
+      llvm::errs() << "Modified module has errors\n";
+    }
+
+    return module;
+  });
+
   get_values_ptr(gv_in.getData(), state.data());
 
-  int num64s = data.size() / 8;
-  if (data.size() % 8 != 0) {
+  int num64s = debug_store.size() / 8;
+  if (debug_store.size() % 8 != 0) {
     num64s++;
   }
   vector<uint64_t> safe_arr(num64s, 0);
-  memcpy(safe_arr.data(), data.data(), data.size());
+  memcpy(safe_arr.data(), debug_store.data(), debug_store.size());
 
-  return llvm::APInt(data.size()*8, llvm::ArrayRef<uint64_t>(safe_arr.data(), num64s));
+  return llvm::APInt(debug_store.size()*8, llvm::ArrayRef<uint64_t>(safe_arr.data(), num64s));
 }
 
 void JITFrontend::dumpIR()

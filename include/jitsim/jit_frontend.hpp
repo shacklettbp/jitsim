@@ -38,6 +38,7 @@ class JITFrontend {
 private:
   std::unique_ptr<llvm::TargetMachine> target_machine;
   const llvm::DataLayout data_layout;
+  std::unordered_map<std::string, ModuleEnvironment> debug_modules;
 
   Builder builder;
   JIT jit;
@@ -57,23 +58,11 @@ private:
   WrapperUpdateStateFn update_state_ptr;
   WrapperGetValuesFn get_values_ptr;
 
-  struct DebugValue {
-    unsigned inst_num;
-    std::string input_name;
-    std::vector<uint8_t> store;
-  };
-
-  struct DebugInfo {
-    std::unordered_map<const Definition *, std::vector<DebugValue>> debug_values;
-    unsigned cur_offset;
-  } debug_info;
-
   const Definition *top;
-
-  std::vector<uint8_t> & updateDebugInfo(const std::vector<std::string> &inst_names, const std::string &input);
 
   void addDefinitionFunctions(const Definition &defn);
   void addWrappers(const Definition &top);
+  std::vector<uint8_t> allocateDebugStorage(const Instance *inst, const std::string &input);
 
   JITFrontend(const Circuit &circuit, const Definition &top);
 public:
