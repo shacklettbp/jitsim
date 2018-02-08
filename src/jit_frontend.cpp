@@ -265,7 +265,7 @@ llvm::APInt JITFrontend::getValue(const vector<string> &inst_names, const string
       return cloned;
     });
   }
-  jit.addDebugTransform(mod_name, [this, inst, mod_name, input, inst_num, debug_store, defn](std::shared_ptr<llvm::Module> module) {
+  auto txfm = jit.addDebugTransform(mod_name, [this, inst, mod_name, input, inst_num, debug_store, defn](std::shared_ptr<llvm::Module> module) {
     ModuleEnvironment &env = debug_modules.find(mod_name)->second;
     llvm::ValueToValueMapTy &val_map = debug_clone_map.find(mod_name)->second;
 
@@ -330,6 +330,8 @@ llvm::APInt JITFrontend::getValue(const vector<string> &inst_names, const string
   });
 
   get_values_ptr(gv_in.getData(), state.data());
+
+  jit.removeDebugTransform(mod_name, txfm);
 
   int num64s = debug_store.size() / 8;
   if (debug_store.size() % 8 != 0) {
