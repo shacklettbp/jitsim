@@ -38,11 +38,11 @@ class JITFrontend {
 private:
   std::unique_ptr<llvm::TargetMachine> target_machine;
   const llvm::DataLayout data_layout;
-  std::unordered_map<std::string, ModuleEnvironment> debug_modules;
-  std::unordered_map<std::string, llvm::ValueToValueMapTy> debug_clone_map;
 
   Builder builder;
   JIT jit;
+  std::unordered_map<std::string, ModuleEnvironment> debug_modules;
+  std::unordered_map<std::string, llvm::ValueToValueMapTy> debug_clone_map;
 
   LLVMStruct co_in;
   LLVMStruct co_out;
