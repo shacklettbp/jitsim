@@ -3,7 +3,6 @@
 #include <tuple>
 
 #include <llvm/Support/raw_os_ostream.h>
-#include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 namespace JITSim {
@@ -168,9 +167,15 @@ void JIT::addLazyFunction(const std::string &name,
   auto compile_callback = compile_callback_manager->getCompileCallback();
   JITTargetAddress callback_address = compile_callback.getAddress();
 
-  cantFail(indirect_stubs_manager->createStub(mangle(name),
-                                              callback_address,
-                                              JITSymbolFlags::Exported));
+
+  // Support redefining an existing stub
+  if (indirect_stubs_manager->findStub(mangle(name), true)) {
+    cantFail(indirect_stubs_manager->updatePointer(mangle(name), callback_address));
+  } else {
+    cantFail(indirect_stubs_manager->createStub(mangle(name),
+                                                callback_address,
+                                                JITSymbolFlags::Exported));
+  }
 
   compile_callback.setCompileAction([this, name, module_generator, callback_address]() {
     auto module = module_generator();

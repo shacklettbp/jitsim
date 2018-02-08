@@ -1,4 +1,5 @@
 #include <jitsim/jit_frontend.hpp>
+#include <llvm/Transforms/Utils/Cloning.h>
 #include "utils.hpp"
 #include "llvm_utils.hpp"
 
@@ -109,16 +110,18 @@ void JITFrontend::addDefinitionFunctions(const Definition &defn)
 
   jit.addLazyFunction(defn.getSafeName() + "_state_deps", [this, &defn]() {
     ModuleEnvironment env = MakeStateDeps(builder, defn);
+    shared_ptr<llvm::Module> mod = env.getModule();
     debug_modules.emplace(defn.getSafeName() + "_state_deps", move(env));
 
-    return env.getModule();
+    return llvm::CloneModule(mod.get(), debug_clone_map[defn.getSafeName() + "_state_deps"]);
   });
 
   jit.addLazyFunction(defn.getSafeName() + "_output_deps", [this, &defn]() {
     ModuleEnvironment env = MakeOutputDeps(builder, defn);
+    shared_ptr<llvm::Module> mod = env.getModule();
     debug_modules.emplace(defn.getSafeName() + "_output_deps", move(env));
 
-    return env.getModule();
+    return llvm::CloneModule(mod.get(), debug_clone_map[defn.getSafeName() + "_state_deps"]);
   });
 }
 
@@ -257,11 +260,14 @@ llvm::APInt JITFrontend::getValue(const vector<string> &inst_names, const string
 
     jit.addLazyFunction(mod_name, [this, mod_name]() {
       ModuleEnvironment &env = debug_modules.find(mod_name)->second;
-      return env.getModule();
+
+      auto cloned = llvm::CloneModule(env.getModule().get(), debug_clone_map[mod_name]);
+      return cloned;
     });
   }
   jit.addDebugTransform(mod_name, [this, inst, mod_name, input, inst_num, debug_store, defn](std::shared_ptr<llvm::Module> module) {
     ModuleEnvironment &env = debug_modules.find(mod_name)->second;
+    llvm::ValueToValueMapTy &val_map = debug_clone_map.find(mod_name)->second;
 
     llvm::Value *llvm_val = nullptr;
     const IFace &inst_iface = inst->getIFace();
@@ -275,6 +281,7 @@ llvm::APInt JITFrontend::getValue(const vector<string> &inst_names, const string
       assert(false);
     }
     assert(llvm_val && "Can't find queried value");
+    llvm_val = val_map.find(llvm_val)->second;
 
     auto func = module->getFunction(mod_name);
     assert(func && "unable to find function to modify");
