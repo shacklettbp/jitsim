@@ -94,6 +94,14 @@ GenInstances(CoreIR::ModuleDef *core_def,
     const Definition *defn = mod_map.find(coreinst_mod)->second;
 
     instances.emplace_back(defn->makeInstance(name));
+    Instance &inst = instances.back();
+    for (auto &val : coreinst->getModArgs()) {
+      if (auto bv = CoreIR::dyn_cast<CoreIR::ConstBitVector>(val.second)) {
+        stringstream strm;
+        strm << bv->get();
+        inst.setArg(val.first, strm.str());
+      }
+    }
     core_instances.push_back(coreinst);
   }
 

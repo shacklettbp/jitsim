@@ -338,6 +338,16 @@ Primitive BuildMem(CoreIR::Module *mod)
       env.getIRBuilder().CreateBr(valid_else_bb); 
 
       env.setCurBasicBlock(valid_else_bb); // valid_else
+    },
+    [width, depth](uint8_t *state_ptr, const Instance &inst) {
+      std::string str = inst.getArg("init");
+      llvm::APInt init(width*depth, str, 2);
+      int num_bytes = width*depth / 8;
+      if (width*depth % 8 != 0) {
+        num_bytes++;
+      }
+
+      memcpy(state_ptr, init.getRawData(), num_bytes);
     }
   );
 }      
@@ -432,6 +442,66 @@ Primitive BuildNot(CoreIR::Module *mod)
   );
 }
 
+Primitive BuildOrr(CoreIR::Module *mod)
+{
+  return Primitive( 
+    [](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *value = args[0];
+      llvm::Value *comp = env.getIRBuilder().CreateICmpNE(value,
+                                                          llvm::ConstantInt::get(value->getType(), 0),
+                                                          "orr_comp");
+      return std::vector<llvm::Value *> { comp };
+    }
+  );
+}
+
+std::vector<llvm::Constant *> GetLUTInit(FunctionEnvironment &env, int bits, const Instance &inst)
+{
+  std::string str = inst.getArg("init");
+  std::vector<llvm::Constant *> r(bits);
+  for (unsigned i = 0; i < str.size(); i++) {
+    if (str[i] == '1') {
+      r[i] = llvm::ConstantInt::getTrue(env.getContext());
+    } else {
+      r[i] = llvm::ConstantInt::getFalse(env.getContext());
+    }
+  }
+
+  return r;
+}
+
+Primitive BuildLUT(CoreIR::Module *mod)
+{
+  int N = 0;
+  for (const auto & val : mod->getGenArgs()) {
+    if (val.first == "N") {
+      N = val.second->get<int>();
+    }
+  }
+
+  int num_elems = 1 << N;
+
+  return Primitive(
+    [num_elems](auto &env, auto &args, auto &inst)
+    {
+      llvm::Value *lookup = args[0];
+      std::vector<llvm::Constant *> init = GetLUTInit(env, num_elems, inst);
+      llvm::Type *boolty = llvm::Type::getInt1Ty(env.getContext());
+      llvm::ArrayType *luttype = llvm::ArrayType::get(boolty, num_elems);
+      llvm::Constant *lut = llvm::ConstantArray::get(luttype, init);
+      llvm::GlobalVariable *lutvar = new llvm::GlobalVariable(*env.getModule().getModule(), luttype, true,
+                                                              llvm::GlobalValue::PrivateLinkage,
+                                                              lut);
+      llvm::Value *addr = env.getIRBuilder().CreateInBoundsGEP(lutvar,
+                            {llvm::ConstantInt::getFalse(env.getContext()), lookup}, "addr");
+      llvm::Value *load = env.getIRBuilder().CreateLoad(addr, "load");
+
+      return std::vector<llvm::Value *> { load };
+    }
+  );
+}
+
 static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> InitializeMapping()
 {
   unordered_map<string,function<Primitive (CoreIR::Module *mod)>> m;
@@ -466,6 +536,9 @@ static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> Initializ
   m["corebit.xor"] = BuildXor;
   m["coreir.not"] = BuildNot;
   m["corebit.not"] = BuildNot;
+  m["coreir.orr"] = BuildOrr;
+
+  m["commonlib.lutN"] = BuildLUT;
 
   return m;
 }

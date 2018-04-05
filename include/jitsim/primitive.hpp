@@ -26,9 +26,11 @@ public:
       FunctionEnvironment &env, const std::vector<llvm::Value *> &args, const Instance &inst
       )>;
   using ModuleGen = std::function<void (ModuleEnvironment &env)>;
+  using StateInit = std::function<void (uint8_t *state_ptr, const Instance &inst)>;
 
   ComputeOutputGen make_compute_output;
   UpdateStateGen make_update_state;
+  StateInit state_init;
   ModuleGen make_def;
 
   Primitive(bool is_stateful_,
@@ -45,6 +47,7 @@ public:
       output_deps(output_deps_),
       make_compute_output(make_compute_output_),
       make_update_state(make_update_state_),
+      state_init(),
       make_def(make_def_)
   {
   }
@@ -62,9 +65,30 @@ public:
       output_deps(output_deps_),
       make_compute_output(make_compute_output_),
       make_update_state(make_update_state_),
+      state_init(),
       make_def()
   {
   }
+
+  Primitive(bool is_stateful_,
+            unsigned int num_state_bytes_,
+            const std::unordered_set<std::string> & state_deps_,
+            const std::unordered_set<std::string> & output_deps_,
+            ComputeOutputGen make_compute_output_,
+            UpdateStateGen make_update_state_,
+            StateInit state_init_)
+    : is_stateful(is_stateful_),
+      has_definition(false),
+      num_state_bytes(num_state_bytes_),
+      state_deps(state_deps_),
+      output_deps(output_deps_),
+      make_compute_output(make_compute_output_),
+      make_update_state(make_update_state_),
+      state_init(state_init_),
+      make_def()
+  {
+  }
+
 
   Primitive(ComputeOutputGen make_compute_output_)
     : is_stateful(false),
@@ -74,6 +98,7 @@ public:
       output_deps(),
       make_compute_output(make_compute_output_),
       make_update_state(),
+      state_init(),
       make_def()
   {
   }

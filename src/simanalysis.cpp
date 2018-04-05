@@ -240,9 +240,25 @@ SimInfo::SimInfo(const IFace &defn_iface, const Primitive &primitive_)
   }
 }
 
+void SimInfo::initializeState(uint8_t *state) const
+{
+  for (const Instance *stateful : stateful_insts) {
+    const SimInfo &inst_info = stateful->getSimInfo();
+    uint8_t *inst_state = state + getOffset(stateful);
+    if (inst_info.isPrimitive() && inst_info.getPrimitive().state_init) {
+      inst_info.getPrimitive().state_init(inst_state, *stateful);
+    } else {
+      inst_info.initializeState(inst_state);
+    }
+  }
+}
+
 vector<uint8_t> SimInfo::allocateState() const
 {
-  return vector<uint8_t>(num_state_bytes, 0);
+  vector<uint8_t> state(num_state_bytes, 0);
+  initializeState(state.data());
+
+  return state;
 }
 
 void SimInfo::print(const string &prefix) const

@@ -203,6 +203,7 @@ private:
   std::string name;
   InstanceIFace interface;
   const Definition *defn;
+  std::unordered_map<std::string, std::string> args;
 public:
   Instance(const std::string &name_, 
            const Definition *defn);
@@ -212,6 +213,8 @@ public:
   const SimInfo & getSimInfo() const;
   const Definition & getDefinition() const { return *defn; }
   const std::string & getName() const { return name; }
+  const std::string & getArg(const std::string &key) const { return args.find(key)->second; }
+  void setArg(const std::string &key, const std::string &val) { args[key] = val; }
 
   void print(const std::string &prefix = "") const;
 };

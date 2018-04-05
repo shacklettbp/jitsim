@@ -35,6 +35,8 @@ private:
   void calculateInstanceNumbers(const std::vector<Instance> &instances);
   void analyzeStateDeps(const IFace &);
   void analyzeOutputDeps(const IFace &);
+
+  void initializeState(uint8_t *state) const;
 public:
   SimInfo(const IFace &defn_iface, const std::vector<Instance> &instances);
   SimInfo(const IFace &defn_iface, const Primitive &primitive);
