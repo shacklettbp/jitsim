@@ -11,7 +11,7 @@ cd ..
 ```
 
 ### Linux System Install
-System install of LLVM 5.0.x is required
+System install of LLVM 6.0.x is required
 
 ### MacOS System Install
 Apple's bundled LLVM is incomplete, use homebrew:
