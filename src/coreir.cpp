@@ -171,7 +171,8 @@ static SourceSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &def
         if (const_inst->getModuleRef()->getNamespace()->getName() == "coreir") {
           BitVector bv = val->get<BitVector>();
           for (int i = 0; i < bv.bitLength(); i++) {
-            new_const.push_back(bv.get(i));
+            // TODO handle z / x values
+            new_const.push_back(bv.get(i).get_char());
           }
         } else {
           bool b = val->get<bool>();

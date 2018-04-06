@@ -164,7 +164,7 @@ JITTargetAddress JIT::updateStub(const std::string &name)
 void JIT::addLazyFunction(const std::string &name,
                           std::function<std::shared_ptr<Module>()> module_generator)
 {
-  auto compile_callback = compile_callback_manager->getCompileCallback();
+  auto compile_callback = cantFail(compile_callback_manager->getCompileCallback());
   JITTargetAddress callback_address = compile_callback.getAddress();
 
 

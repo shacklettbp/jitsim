@@ -82,7 +82,7 @@ public:
   }
   void addDebugValue(llvm::Value *val, llvm::DILocalVariable *var_info,
                      llvm::DIExpression *expr, const llvm::DILocation *loc)
-  { getDIBuilder().insertDbgValueIntrinsic(val, 0, var_info, expr, loc, cur_bb); }
+  { getDIBuilder().insertDbgValueIntrinsic(val, var_info, expr, loc, cur_bb); }
 
   llvm::Function * getFunction() { return func; }
   ModuleEnvironment & getModule() { return *parent; }
