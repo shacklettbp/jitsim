@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <regex>
+#include <ctime>
 
 #include <jitsim/jit_frontend.hpp>
 #include <jitsim/coreir.hpp>
@@ -24,7 +25,9 @@ JITSim::Circuit loadJSON(const string &str)
     ctx->die();
   }
 
-  ctx->runPasses({"rungenerators", "flattentypes"});
+  ctx->addPass(new JITSim::MaterializeArgs);
+
+  ctx->runPasses({"rungenerators", "flattentypes", "materializeargs"});
 
   JITSim::Circuit circuit = JITSim::BuildFromCoreIR(top);
 
@@ -57,9 +60,17 @@ int main(int argc, char *argv[])
   regex next(R"(next(?:\s+(\d+))?)");
   regex assign(R"(assign\s+(\w+)\s+(\d+))");
   regex print(R"(print\s+(?:(\w+).)+(\w+))");
+  
+  int numcycles = -1;
+  clock_t start = 0;
 
   while (true) {
     if (advance == 0) {
+      if (numcycles > 0) {
+        double secs = ((double)clock() - (double)start) / CLOCKS_PER_SEC;
+        printf("Calculated at %f cycles per second\n", numcycles / secs);
+        numcycles = -1;
+      }
       string input;
       getline(cin, input);
       if (cin.eof()) {
@@ -72,6 +83,8 @@ int main(int argc, char *argv[])
         } else {
           advance = stoi(match[1]);
         }
+        numcycles = advance;
+        start = clock();
       } else if (regex_search(input, match, assign)) {
         string in_name = match[1];
         llvm::StringRef strRef = llvm::StringRef(match[2]);
@@ -95,7 +108,7 @@ int main(int argc, char *argv[])
     } else { 
       jit.updateState();
       out = jit.computeOutput();
-      out.dump();
+      //out.dump();
 
       advance--;
     }

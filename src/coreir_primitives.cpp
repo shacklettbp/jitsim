@@ -456,6 +456,24 @@ Primitive BuildOrr(CoreIR::Module *mod)
   );
 }
 
+Primitive BuildZExt(CoreIR::Module *mod)
+{
+  return Primitive(
+    [](auto &env, auto &args, auto &inst)
+    {
+      std::string width_arg = inst.getArg("width_in");
+      int width = std::stoi(width_arg);
+
+      llvm::Value *value = args[0];
+      llvm::Value *extended = env.getIRBuilder().CreateZExt(value,
+        llvm::Type::getIntNTy(env.getContext(), width),
+        "zext");
+
+      return std::vector<llvm::Value *> { extended };
+    }
+  );
+}
+
 std::vector<llvm::Constant *> GetLUTInit(FunctionEnvironment &env, int bits, const Instance &inst)
 {
   std::string str = inst.getArg("init");
@@ -519,6 +537,8 @@ static unordered_map<string,function<Primitive (CoreIR::Module *mod)>> Initializ
   m["coreir.sge"] = BuildSGE;
   m["coreir.slt"] = BuildUGT;
   m["coreir.sle"] = BuildUGT;
+
+  m["coreir.zext"] = BuildZExt;
 
   m["coreir.reg"] = BuildReg;
   m["coreir.mux"] = BuildMux;

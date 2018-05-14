@@ -1,6 +1,7 @@
 #include <jitsim/coreir.hpp>
 #include <jitsim/circuit.hpp>
 
+#include <coreir/ir/instancegraph.h>
 #include <coreir/ir/moduledef.h>
 #include <coreir/ir/namespace.h>
 #include <coreir/ir/types.h>
@@ -170,27 +171,21 @@ static SourceSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &def
 
   if (isConstantWireable(parent_w)) {
     CoreIR::Instance *const_inst = static_cast<CoreIR::Instance *>(parent_w);
-    bool found = false;
     vector<bool> new_const;
-    for (auto& arg : const_inst->getModArgs()) {
-      if (arg.first == "value") {
-        found = true;
-        CoreIR::Value* val = arg.second;
-        if (const_inst->getModuleRef()->getNamespace()->getName() == "coreir") {
-          BitVector bv = val->get<BitVector>();
-          for (int i = 0; i < bv.bitLength(); i++) {
-            // TODO handle z / x values
-            new_const.push_back(bv.get(i).get_char());
-          }
-        } else {
-          bool b = val->get<bool>();
-          new_const.push_back(b);
-        }
-        break;
+    CoreIR::Value *val = const_inst->getModArgs().at("value");
+    if (val->getKind() == CoreIR::Value::VK_ConstBitVector) {
+      BitVector bv = val->get<BitVector>();
+      for (int i = 0; i < bv.bitLength(); i++) {
+        // TODO handle z / x values
+        new_const.push_back(bv.get(i).get_char());
       }
+    } else if (val->getKind() == CoreIR::Value::VK_ConstBool) {
+      bool b = val->get<bool>();
+      new_const.push_back(b);
+    } else {
+      std::cerr << "Unsupported const value: " << val->toString() << std::endl;
+      assert(false);
     }
-    (void)found;
-    assert(found);
 
     if (is_arrslice) {
       return SourceSlice(vector<bool>(new_const[parent_idx]));
@@ -223,10 +218,13 @@ static void SetupIFaceConnections(CoreIR::Wireable *core_w, IFace &iface, const 
     const string &iname = new_sink.getName();
 
     CoreIR::Select *in_sel = core_w->sel(iname);
+
     auto connected = in_sel->getConnectedWireables();
 
     if (connected.size() == 0) {
       if (in_sel->getType()->getKind() != CoreIR::Type::TK_Array) {
+        std::cout << "No select " << in_sel->toString() << std::endl;
+        in_sel->getType()->print();
         assert(false);
       }
       vector<SourceSlice> slices;
@@ -307,6 +305,74 @@ Circuit BuildFromCoreIR(CoreIR::Module *core_mod)
   ProcessModules(core_mod, mod_map, definitions);
 
   return Circuit(move(definitions));
+}
+
+std::string MaterializeArgs::ID = "materializeargs";
+bool MaterializeArgs::runOnContext(CoreIR::Context *ctx)
+{
+  assert(ctx->hasTop());
+  CoreIR::Module *top = ctx->getTop();
+
+  bool changed = false;
+  for (auto instpair : top->getDef()->getInstances()) {
+    changed |= materializeArgs(instpair.second);
+  }
+
+  return changed;
+}
+
+bool MaterializeArgs::materializeArgs(CoreIR::Instance *inst)
+{
+  CoreIR::Module *module = inst->getModuleRef();
+  if (!module->hasDef()) {
+    return false;
+  }
+  bool changed = false;
+
+  CoreIR::Values instModArgs = inst->getModArgs();
+  if (instModArgs.size() == 0) { // Just recurse
+    for (auto instpair : module->getDef()->getInstances()) {
+      changed |= materializeArgs(instpair.second);
+    }
+    return changed;
+  }
+
+  CoreIR::ModuleDef *new_inst_def = module->getDef()->copy();
+  string newname = module->getLongName();
+  for (auto &vpair : instModArgs) {
+    assert(vpair.second->getKind() != CoreIR::Value::VK_Arg);
+    newname += "_" + vpair.first + "_" +vpair.second->toString();
+  }
+
+  CoreIR::Module *uniquified_mod = nullptr;
+  auto iter = uniquified_modules.find(newname);
+  if (iter != uniquified_modules.end()) {
+    uniquified_mod = iter->second;
+  } else {
+    uniquified_mod = new CoreIR::Module(module->getNamespace(), newname,
+                                        module->getType(), CoreIR::Params());
+    uniquified_mod->setDef(new_inst_def);
+    uniquified_modules[newname] = uniquified_mod;
+  }
+    
+  inst->replace(uniquified_mod, CoreIR::Values());
+  
+  for (auto instpair : new_inst_def->getInstances()) {
+    CoreIR::Values modargs = instpair.second->getModArgs();
+    for (auto vpair : modargs) {
+      if (CoreIR::Arg *varg = CoreIR::dyn_cast<CoreIR::Arg>(vpair.second)) {
+        ASSERT(instModArgs.count(varg->getField()),"Invalid Arg()");
+        modargs[vpair.first] = instModArgs[varg->getField()];
+        changed = true;
+      }
+    }
+    instpair.second->replace(instpair.second->getModuleRef(), modargs);
+
+    // Recurse
+    changed |= materializeArgs(instpair.second);
+  }
+
+  return changed;
 }
 
 }
