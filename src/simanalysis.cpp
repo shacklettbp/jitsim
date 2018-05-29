@@ -21,8 +21,7 @@ static vector<const Instance *> filterStatefulInstances(const vector<Instance> &
   return stateful;
 }
 
-/* Returns set of every Source the Sinks in frontier depend on */
-unordered_set<const SourceSlice *> getDependencies(unordered_set<const Sink *> frontier)
+/* Returns set of every Source the Sinks in frontier depend on */ unordered_set<const SourceSlice *> getDependencies(unordered_set<const Sink *> frontier)
 {
   unordered_set<const SourceSlice *> visited;
 
@@ -40,6 +39,7 @@ unordered_set<const SourceSlice *> getDependencies(unordered_set<const Sink *> f
         } else {
           const Instance *depinst = slice.getInstance();
           visited.insert(&slice);
+
           const SimInfo &inst_info = depinst->getSimInfo();
           for (const Source *src : inst_info.getOutputSources()) {
             const Sink *inst_sink = depinst->getIFace().getSink(src);
