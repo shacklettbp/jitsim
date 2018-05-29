@@ -303,7 +303,6 @@ Circuit BuildFromCoreIR(CoreIR::Module *core_mod)
   deque<Definition> definitions;
   unordered_map<CoreIR::Module *, const Definition *> mod_map;
   ProcessModules(core_mod, mod_map, definitions);
-
   return Circuit(move(definitions));
 }
 
