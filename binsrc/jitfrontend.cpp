@@ -59,15 +59,16 @@ int main(int argc, char *argv[])
   int advance = 0;
   regex next(R"(next(?:\s+(\d+))?)");
   regex assign(R"(assign\s+(\w+)\s+(\d+))");
-  regex print(R"(print\s+(?:(\w+).)+(\w+))");
+  regex print(R"(print\s+((\w+.)+(\w+)))");
+  regex instsplit(R"((\w+))");
   
   int numcycles = -1;
-  clock_t start = 0;
+  //clock_t start = 0;
 
   while (true) {
     if (advance == 0) {
       if (numcycles > 0) {
-        double secs = ((double)clock() - (double)start) / CLOCKS_PER_SEC;
+        //double secs = ((double)clock() - (double)start) / CLOCKS_PER_SEC;
         //printf("Calculated at %f cycles per second\n", numcycles / secs);
         numcycles = -1;
       }
@@ -84,7 +85,7 @@ int main(int argc, char *argv[])
           advance = stoi(match[1]);
         }
         numcycles = advance;
-        start = clock();
+        //start = clock();
       } else if (regex_search(input, match, assign)) {
         string in_name = match[1];
         llvm::StringRef strRef = llvm::StringRef(match[2]);
@@ -95,11 +96,18 @@ int main(int argc, char *argv[])
         out = jit.computeOutput();
         out.dump();
       } else if (regex_search(input, match, print)) {
-        vector<string> instances;
-        for (unsigned i = 1; i < match.size() - 1; i++) {
-          instances.emplace_back(match[i]);
+        vector<string> splitted;
+        string arg = match[1];
+        while (regex_search(arg, match, instsplit)) {
+          splitted.push_back(match[1]);
+          arg = match.suffix().str();
         }
-        llvm::APInt val = jit.getValue(instances, match[match.size() - 1]);
+
+        vector<string> instances;
+        for (unsigned i = 0; i < splitted.size() - 1; i++) {
+          instances.emplace_back(splitted[i]);
+        }
+        llvm::APInt val = jit.getValue(instances, splitted[splitted.size() - 1]);
         cout << val.toString(10, false) << endl;
       } else {
         cout << "Invalid command\n";
