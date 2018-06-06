@@ -344,7 +344,7 @@ bool MaterializeArgs::materializeArgs(CoreIR::Instance *inst)
     string strarg = vpair.second->toString();
     strarg.erase(std::remove(strarg.begin(), strarg.end(), '\''), strarg.end());
     strarg.erase(std::remove(strarg.begin(), strarg.end(), '/'), strarg.end());
-    newname += "_" + vpair.first + "_" + vpair.second->toString();
+    newname += "_" + vpair.first + "_" + strarg;
   }
 
   CoreIR::Module *uniquified_mod = nullptr;
