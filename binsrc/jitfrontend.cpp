@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     if (advance == 0) {
       if (numcycles > 0) {
         double secs = ((double)clock() - (double)start) / CLOCKS_PER_SEC;
-        printf("Calculated at %f cycles per second\n", numcycles / secs);
+        //printf("Calculated at %f cycles per second\n", numcycles / secs);
         numcycles = -1;
       }
       string input;
