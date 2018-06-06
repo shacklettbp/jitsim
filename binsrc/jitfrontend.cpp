@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     } else { 
       jit.updateState();
       out = jit.computeOutput();
-      //out.dump();
+      out.dump();
 
       advance--;
     }
