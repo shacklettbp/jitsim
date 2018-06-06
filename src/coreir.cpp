@@ -12,6 +12,7 @@
 #include <utility>
 #include <tuple>
 #include <string>
+#include <algorithm>
 
 #include "coreir_primitives.hpp"
 
@@ -340,7 +341,10 @@ bool MaterializeArgs::materializeArgs(CoreIR::Instance *inst)
   string newname = module->getLongName();
   for (auto &vpair : instModArgs) {
     assert(vpair.second->getKind() != CoreIR::Value::VK_Arg);
-    newname += "_" + vpair.first + "_" +vpair.second->toString();
+    string strarg = vpair.second->toString();
+    strarg.erase(std::remove(strarg.begin(), strarg.end(), '\''), strarg.end());
+    strarg.erase(std::remove(strarg.begin(), strarg.end(), '/'), strarg.end());
+    newname += "_" + vpair.first + "_" + vpair.second->toString();
   }
 
   CoreIR::Module *uniquified_mod = nullptr;
