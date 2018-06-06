@@ -178,7 +178,7 @@ static SourceSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &def
       BitVector bv = val->get<BitVector>();
       for (int i = 0; i < bv.bitLength(); i++) {
         // TODO handle z / x values
-        new_const.push_back(bv.get(i).get_char());
+        new_const.insert(new_const.begin(), bv.get(i).get_char());
       }
     } else if (val->getKind() == CoreIR::Value::VK_ConstBool) {
       bool b = val->get<bool>();
@@ -189,7 +189,7 @@ static SourceSlice CreateSlice(CoreIR::Wireable *source_w, const Definition &def
     }
 
     if (is_arrslice) {
-      return SourceSlice(vector<bool>(new_const[parent_idx]));
+      return SourceSlice(vector<bool>(new_const[new_const.size() - 1 - parent_idx]));
     } else {
       return SourceSlice(new_const);
     }
